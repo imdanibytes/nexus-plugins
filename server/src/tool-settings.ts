@@ -4,7 +4,7 @@ import type { ToolSettings } from "./types.js";
 const SETTINGS_PATH = "/data/tool-settings.json";
 
 const DEFAULTS: ToolSettings = {
-  hiddenToolPatterns: ["_nexus_*"],
+  uiHiddenPatterns: ["_nexus_*"],
 };
 
 function load(): ToolSettings {
@@ -27,9 +27,10 @@ function save(data: ToolSettings): void {
 }
 
 export async function getToolSettings(): Promise<ToolSettings> {
-  const stored = load();
+  const stored = load() as ToolSettings & { hiddenToolPatterns?: string[] };
   return {
-    hiddenToolPatterns: stored.hiddenToolPatterns ?? DEFAULTS.hiddenToolPatterns,
+    // Migrate from old key name if present
+    uiHiddenPatterns: stored.uiHiddenPatterns ?? stored.hiddenToolPatterns ?? DEFAULTS.uiHiddenPatterns,
     globalToolFilter: stored.globalToolFilter,
   };
 }

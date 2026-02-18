@@ -47,7 +47,7 @@ export interface Agent {
 }
 
 export interface ToolSettings {
-  hiddenToolPatterns: string[];
+  uiHiddenPatterns: string[];
   globalToolFilter?: ToolFilter;
 }
 

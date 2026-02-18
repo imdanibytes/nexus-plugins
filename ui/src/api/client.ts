@@ -143,7 +143,7 @@ export interface Agent {
 // ── Tool settings types ──
 
 export interface ToolSettings {
-  hiddenToolPatterns: string[];
+  uiHiddenPatterns: string[];
   globalToolFilter?: ToolFilter;
 }
 

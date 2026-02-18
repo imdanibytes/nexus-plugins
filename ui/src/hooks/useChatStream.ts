@@ -26,7 +26,7 @@ import {
 let cachedHiddenPatterns: string[] = ["_nexus_*"];
 fetchToolSettings()
   .then((s) => {
-    cachedHiddenPatterns = s.hiddenToolPatterns;
+    cachedHiddenPatterns = s.uiHiddenPatterns;
   })
   .catch(() => {});
 
@@ -519,7 +519,7 @@ export function useChatStream(): {
   const sendMessage = useCallback(async (text: string) => {
     fetchToolSettings()
       .then((s) => {
-        cachedHiddenPatterns = s.hiddenToolPatterns;
+        cachedHiddenPatterns = s.uiHiddenPatterns;
       })
       .catch(() => {});
 
@@ -551,7 +551,7 @@ export function useChatStream(): {
     async (text: string, branchParentId: string | null) => {
       fetchToolSettings()
         .then((s) => {
-          cachedHiddenPatterns = s.hiddenToolPatterns;
+          cachedHiddenPatterns = s.uiHiddenPatterns;
         })
         .catch(() => {});
 
@@ -612,7 +612,7 @@ export function useChatStream(): {
     async (userMessageId: string) => {
       fetchToolSettings()
         .then((s) => {
-          cachedHiddenPatterns = s.hiddenToolPatterns;
+          cachedHiddenPatterns = s.uiHiddenPatterns;
         })
         .catch(() => {});
 

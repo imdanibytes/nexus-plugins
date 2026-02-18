@@ -150,7 +150,7 @@ export async function getToolRegistry(
 
   // Apply global + agent-level filters. Frontend tools bypass server-side
   // filters (they're defined by the client and shouldn't be subject to admin deny-lists).
-  // NOTE: hiddenToolPatterns is a UI-only display filter (applied in useChatStream.ts),
+  // NOTE: uiHiddenPatterns is a UI-only display filter (applied in useChatStream.ts),
   // NOT a model-level filter. Tools like _nexus_set_title must be visible to the LLM.
   const toolSettings = await getToolSettings();
   let serverDefs = applyToolFilters(executor.definitions(), globalFilter, agentFilter);

@@ -34,7 +34,7 @@ export function ToolsTab() {
   useEffect(() => {
     fetchToolSettings().then((s) => {
       setSettings(s);
-      setPatterns(s.hiddenToolPatterns);
+      setPatterns(s.uiHiddenPatterns);
       setFilterMode(s.globalToolFilter?.mode || "all");
       setFilterTools(new Set(s.globalToolFilter?.tools || []));
     });
@@ -57,7 +57,7 @@ export function ToolsTab() {
           : { mode: fm, tools: Array.from(ft) };
 
       const updated = await updateToolSettingsApi({
-        hiddenToolPatterns: p,
+        uiHiddenPatterns: p,
         globalToolFilter,
       });
       setSettings(updated);
