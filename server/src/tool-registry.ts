@@ -74,7 +74,7 @@ function applyToolFilters(
 // only sees tools appropriate for its current mode.
 
 const INTERNAL_TOOL_NAMES = new Set([
-  "set_title",
+  "_nexus_set_title",
   "delegate",
   "workflow_set_mode",
   "task_approve_plan",
@@ -87,7 +87,7 @@ const INTERNAL_TOOL_NAMES = new Set([
 
 const MODE_TOOLS: Record<AgentMode, { internal: Set<string>; allowMcp: boolean }> = {
   general: {
-    internal: new Set(["set_title", "workflow_set_mode"]),
+    internal: new Set(["_nexus_set_title", "workflow_set_mode"]),
     allowMcp: true,
   },
   discovery: {
@@ -148,16 +148,12 @@ export async function getToolRegistry(
   executor.register(getTaskTool);
   executor.registerAll(await fetchMcpToolHandlers());
 
-  // Apply hiddenToolPatterns first — these are system-level patterns (e.g. "_nexus_*")
-  // that should always be excluded regardless of other filters
+  // Apply global + agent-level filters. Frontend tools bypass server-side
+  // filters (they're defined by the client and shouldn't be subject to admin deny-lists).
+  // NOTE: hiddenToolPatterns is a UI-only display filter (applied in useChatStream.ts),
+  // NOT a model-level filter. Tools like _nexus_set_title must be visible to the LLM.
   const toolSettings = await getToolSettings();
-  const visibleDefs = executor.definitions().filter(
-    (d) => !toolSettings.hiddenToolPatterns.some((p) => matchGlob(p, d.name)),
-  );
-
-  // Then apply global + agent-level filters. Frontend tools bypass server-side
-  // filters (they're defined by the client and shouldn't be subject to admin deny-lists)
-  let serverDefs = applyToolFilters(visibleDefs, globalFilter, agentFilter);
+  let serverDefs = applyToolFilters(executor.definitions(), globalFilter, agentFilter);
 
   // Apply mode-based filtering — hides tools the agent shouldn't use in its current workflow phase
   serverDefs = applyModeFilter(serverDefs, agentMode);

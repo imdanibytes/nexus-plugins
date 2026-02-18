@@ -54,9 +54,16 @@ function createMcpToolHandler(
         const client = await getMcpClient();
         const result = await client.callTool({ name, arguments: args });
 
-        const text = (result.content as { type: string; text: string }[])
+        const MAX_OUTPUT_CHARS = 100_000; // ~25k tokens — keeps context safe
+        let text = (result.content as { type: string; text: string }[])
           .map((c) => c.text)
           .join("\n");
+        if (text.length > MAX_OUTPUT_CHARS) {
+          const totalLen = text.length;
+          text =
+            text.slice(0, MAX_OUTPUT_CHARS) +
+            `\n\n[OUTPUT TRUNCATED — showing first ${MAX_OUTPUT_CHARS.toLocaleString()} of ${totalLen.toLocaleString()} characters]`;
+        }
         const isError = result.isError === true;
 
         ctx.sse.writeEvent("tool_result", {

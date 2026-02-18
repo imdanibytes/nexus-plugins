@@ -342,6 +342,12 @@ async function _runAgentTurnInner(
       conv.usage.totalCost += turnCost;
       conv.usage.contextTokens = result.tokenUsage.inputTokens;
       conv.usage.contextWindow = contextWindow;
+
+      // Emit incremental usage so the context ring updates per-round
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "usage",
+        value: conv.usage,
+      });
     }
 
     roundSpan.end();
