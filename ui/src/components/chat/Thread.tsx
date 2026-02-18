@@ -353,7 +353,9 @@ const AssistantMessage: FC<{
   isStreaming: boolean;
   onReload: () => void;
 }> = ({ message, isStreaming, onReload }) => {
-  const hasError = message.status?.type === "incomplete";
+  const hasError =
+    message.status?.type === "incomplete" &&
+    message.status.reason !== "aborted";
   const isActiveStream = message.status?.type === "streaming";
   const visibleParts = message.parts.filter(
     (p) => p.type === "text" ? (p as { text: string }).text.length > 0 : true,
