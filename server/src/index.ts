@@ -378,6 +378,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Task state for a conversation
+    const tasksMatch = url.match(/^\/api\/conversations\/([a-f0-9-]+)\/tasks$/);
+    if (method === "GET" && tasksMatch) {
+      const { getTaskState } = await import("./tasks/storage.js");
+      json(res, 200, getTaskState(tasksMatch[1]));
+      return;
+    }
+
     // Usage for a conversation
     const usageMatch = url.match(/^\/api\/conversations\/([a-f0-9-]+)\/usage$/);
     if (method === "GET" && usageMatch) {

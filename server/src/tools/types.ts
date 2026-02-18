@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import type { Conversation, SseWriter } from "../types.js";
 
 export interface ToolResult {
@@ -12,6 +13,14 @@ export interface ToolContext {
   conversation: Conversation;
   saveConversation: (conv: Conversation) => void;
   signal: AbortSignal;
+  /** LLM client — available for sub-agent delegation */
+  client?: Anthropic;
+  /** Model ID — available for sub-agent delegation */
+  model?: string;
+  /** Max output tokens — available for sub-agent delegation */
+  maxTokens?: number;
+  /** Temperature — available for sub-agent delegation */
+  temperature?: number;
 }
 
 export interface ToolDefinition {

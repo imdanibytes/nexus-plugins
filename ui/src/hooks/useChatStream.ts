@@ -10,6 +10,7 @@ import type {
 import { useChatStore } from "@/stores/chatStore.js";
 import { useMcpTurnStore } from "@/stores/mcpTurnStore.js";
 import { useUsageStore } from "@/stores/usageStore.js";
+import { useTaskStore } from "@/stores/taskStore.js";
 import { fetchToolSettings } from "@/api/client.js";
 import type { ConversationUsage } from "@/api/client.js";
 import type { WireMessage } from "@/api/client.js";
@@ -307,6 +308,20 @@ async function consumeStream(
             const val = event.value as ConversationUsage;
             if (val) {
               useUsageStore.getState().setUsage(conversationId, val);
+            }
+          } else if (name === "task_state_changed") {
+            const val = event.value as {
+              conversationId: string;
+              plan: import("@/api/client.js").Plan | null;
+              tasks: Record<string, import("@/api/client.js").Task>;
+              mode?: import("@/api/client.js").AgentMode;
+            };
+            if (val) {
+              useTaskStore.getState().setTaskState(val.conversationId, {
+                plan: val.plan,
+                tasks: val.tasks,
+                mode: val.mode ?? "general",
+              });
             }
           }
           break;

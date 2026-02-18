@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { ThreadList } from "./components/chat/ThreadList.js";
 import { Thread } from "./components/chat/Thread.js";
+import { TaskPanel } from "./components/chat/TaskPanel.js";
 import { SettingsPage } from "./components/settings/SettingsPage.js";
 import { useChatStore } from "./stores/chatStore.js";
 import { useThreadListStore } from "./stores/threadListStore.js";
 import { useMcpTurnStore } from "./stores/mcpTurnStore.js";
+import { useTaskStore } from "./stores/taskStore.js";
 import { eventBus } from "./runtime/event-bus.js";
 import {
   fetchAgents,
@@ -59,10 +61,25 @@ function NexusApp() {
       useThreadListStore.getState().loadThreads();
     });
 
+    const unsubTasks = eventBus.on("task_state_changed", (event) => {
+      const { conversationId, plan, tasks, mode } = event.value as {
+        conversationId: string;
+        plan: unknown;
+        tasks: Record<string, unknown>;
+        mode?: string;
+      };
+      useTaskStore.getState().setTaskState(conversationId, {
+        plan: plan as import("./api/client.js").Plan | null,
+        tasks: tasks as Record<string, import("./api/client.js").Task>,
+        mode: (mode as import("./api/client.js").AgentMode) ?? "general",
+      });
+    });
+
     return () => {
       unsubTools();
       unsubMcpPending();
       unsubConvChanged();
+      unsubTasks();
       eventBus.disconnect();
     };
   }, [setAvailableTools]);
@@ -88,8 +105,11 @@ function NexusApp() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 h-full min-h-0">
-        {settingsOpen ? <SettingsPage /> : <Thread />}
+      <div className="flex-1 min-w-0 h-full min-h-0 flex">
+        <div className="flex-1 min-w-0">
+          {settingsOpen ? <SettingsPage /> : <Thread />}
+        </div>
+        {!settingsOpen && <TaskPanel />}
       </div>
     </div>
   );

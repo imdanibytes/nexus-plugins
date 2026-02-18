@@ -25,7 +25,7 @@
     "tools": [
       {
         "name": "list_agents",
-        "description": "List all configured agents. Returns each agent's id, name, and model.",
+        "description": "List all configured agents with their id, name, and model. Use to discover available agents before sending messages or to show the user their agent options. Do NOT call repeatedly — the list rarely changes within a session.",
         "permissions": [],
         "input_schema": {
           "type": "object",
@@ -35,7 +35,7 @@
       },
       {
         "name": "get_agent",
-        "description": "Get full details of a specific agent including its system prompt, provider, and model configuration.",
+        "description": "Get full details of a specific agent including its system prompt, provider, and model configuration. Use when you need to understand an agent's capabilities or configuration before delegating work. Do NOT use just to check if an agent exists — use list_agents for that.",
         "permissions": [],
         "input_schema": {
           "type": "object",
@@ -51,7 +51,7 @@
       },
       {
         "name": "list_conversations",
-        "description": "List all conversations. Returns each conversation's id, title, message count, and timestamps.",
+        "description": "List all conversations with id, title, message count, and timestamps. Use to find a specific past conversation by title or to show conversation history. Do NOT call this to check the current conversation — you already have that context.",
         "permissions": [],
         "input_schema": {
           "type": "object",
@@ -61,7 +61,7 @@
       },
       {
         "name": "get_conversation",
-        "description": "Get the full message history of a conversation including text content and tool call summaries.",
+        "description": "Get the full message history of a specific conversation including text content and tool call summaries. Use to review what happened in a past conversation or to gather context from another thread. Do NOT use on the current conversation — you already have the message history. Can return large payloads for long conversations.",
         "permissions": [],
         "input_schema": {
           "type": "object",
@@ -77,7 +77,7 @@
       },
       {
         "name": "send_message",
-        "description": "Send a message to an agent and receive the full response. Creates a new conversation if conversation_id is omitted. The agent will execute tool calls as needed before responding.",
+        "description": "Send a message to an agent and receive its complete response (blocks until done). Creates a new conversation if conversation_id is omitted. Use for cross-agent communication — e.g., asking a different agent to perform a task and getting the result. Do NOT use to talk to yourself or to simulate user messages. The target agent will execute its own tool calls before responding, so this can take significant time.",
         "permissions": [],
         "input_schema": {
           "type": "object",

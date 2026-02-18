@@ -5,7 +5,10 @@ export const setTitleTool: ToolHandler = {
   definition: {
     name: "_nexus_set_title",
     description:
-      "Update the conversation title. Call this after your first response to set an initial title, and again whenever the topic shifts significantly. Keep titles brief (3-8 words).",
+      "Update the conversation title displayed in the sidebar. " +
+      "Use after your first response to set an initial title, and when the topic shifts significantly. " +
+      "Do NOT call on every message — only when the subject actually changes. " +
+      "Keep titles brief (3-8 words). Returns confirmation text.",
     input_schema: {
       type: "object",
       properties: {

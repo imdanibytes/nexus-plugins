@@ -5,12 +5,14 @@ import { getConversation, saveConversation } from "./storage.js";
 import { getToolSettings } from "./tool-settings.js";
 import { resolveTurnConfig } from "./turn-config.js";
 import { getToolRegistry } from "./tool-registry.js";
+import { getTaskState } from "./tasks/storage.js";
 import { runRound } from "./round-runner.js";
 import { SystemMessageBuilder } from "./system-message/builder.js";
 import { corePromptProvider } from "./system-message/providers/core-prompt.js";
 import { datetimeProvider } from "./system-message/providers/datetime.js";
 import { conversationContextProvider } from "./system-message/providers/conversation-context.js";
 import { messageBoundaryProvider } from "./system-message/providers/message-boundary.js";
+import { taskContextProvider } from "./system-message/providers/task-context.js";
 import { SpanCollector } from "./timing.js";
 import { CompactionPipeline, truncateOldToolResults } from "./compaction/pipeline.js";
 import { toolResponsePruner } from "./compaction/passes/tool-response-pruner.js";
@@ -38,6 +40,7 @@ systemMessageBuilder.register(messageBoundaryProvider);
 systemMessageBuilder.register(corePromptProvider);
 systemMessageBuilder.register(conversationContextProvider);
 systemMessageBuilder.register(datetimeProvider);
+systemMessageBuilder.register(taskContextProvider);
 
 // Compaction pipeline — register passes in escalation order
 const compactionPipeline = new CompactionPipeline();
@@ -166,12 +169,14 @@ async function _runAgentTurnInner(
       ` messages=${wireMessages.length}`,
   );
 
-  // ── 3. Build tools ──
+  // ── 3. Build tools (mode-aware: hides tools irrelevant to current workflow phase) ──
   const toolSetupSpan = setupSpan.span("build_tools");
+  const taskState = getTaskState(conversationId);
   const registry = await getToolRegistry(
     toolSettings.globalToolFilter,
     config.agent?.toolFilter,
     frontendTools,
+    taskState.mode,
   );
   toolSetupSpan.end();
 
@@ -210,6 +215,11 @@ async function _runAgentTurnInner(
     conversation: conv,
     saveConversation,
     signal: abortController.signal,
+    // LLM config for sub-agent delegation
+    client: config.client,
+    model: config.model,
+    maxTokens: config.maxTokens,
+    temperature: config.temperature,
   };
 
   // ── 5. Compaction (pre-turn) ──
