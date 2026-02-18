@@ -213,7 +213,8 @@ export const createPlanTool: ToolHandler = {
   },
 
   async execute(toolUseId: string, args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-    const title = ((args.title as string) || "").trim();
+    // Accept common aliases — models sometimes use plan_title/plan instead of title/summary
+    const title = ((args.title as string) || (args.plan_title as string) || "").trim();
     if (!title) {
       return { tool_use_id: toolUseId, content: "Plan title is required", is_error: true };
     }
@@ -225,7 +226,7 @@ export const createPlanTool: ToolHandler = {
       id: uuidv4(),
       conversationId: ctx.conversationId,
       title,
-      summary: ((args.summary as string) || "").trim() || undefined,
+      summary: ((args.summary as string) || (args.plan as string) || "").trim() || undefined,
       taskIds: [],
       approved: null,
       createdAt: now,

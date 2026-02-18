@@ -180,7 +180,16 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       try {
         args = JSON.parse(block.partialJson || "{}");
       } catch {
-        args = {};
+        // Recovery: some models emit a leading {} before the real JSON object.
+        // Strip it and retry before falling back to empty args.
+        const cleaned = block.partialJson.replace(/^\{\}\s*/, "");
+        try {
+          args = JSON.parse(cleaned || "{}");
+          console.warn(`[agent] recovered malformed tool args for ${block.name}: stripped leading {}`);
+        } catch {
+          console.error(`[agent] failed to parse tool args for ${block.name}: ${block.partialJson.slice(0, 200)}`);
+          args = {};
+        }
       }
       assistantContentBlocks.push({
         type: "tool_use",
