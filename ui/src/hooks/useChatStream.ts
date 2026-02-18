@@ -247,7 +247,7 @@ async function consumeStream(
             toolCallId: event.toolCallId as string,
             toolName: event.toolCallName as string,
             args: {},
-            argsText: "{}",
+            argsText: "",
             status: { type: "running" },
           });
           pushToStore();
