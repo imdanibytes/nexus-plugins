@@ -371,12 +371,31 @@ async function consumeStream(
       }
     }
 
-    // Explicit abort (Stop button)
+    // Explicit abort (Stop button) — persist partial message so it survives navigation
     if (signal.aborted) {
       useThreadStore.getState().finalizeStreaming(conversationId, {
         type: "incomplete",
         reason: "aborted",
-      });
+      }, metadata);
+
+      if (turnCtx) {
+        const convId = turnCtx.conversationId;
+        const store = useThreadStore.getState();
+
+        if (!turnCtx.skipUserPersist) {
+          await store.persistMessage(convId, turnCtx.userMessage, turnCtx.parentId);
+        }
+
+        const assistantMsg: ChatMessage = {
+          id: turnCtx.assistantMessageId,
+          role: "assistant",
+          parts: filteredParts(),
+          createdAt: new Date(),
+          status: { type: "incomplete", reason: "aborted" },
+          metadata,
+        };
+        await store.persistMessage(convId, assistantMsg, turnCtx.userMessage.id);
+      }
       return;
     }
 

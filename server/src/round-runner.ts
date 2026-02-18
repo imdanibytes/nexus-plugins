@@ -56,10 +56,17 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
 
   sse.writeEvent(EventType.STEP_STARTED, { stepName: `round:${roundNumber}` });
 
+  // Hoisted so the catch block can access partial content on abort
+  const assistantParts: MessagePart[] = [];
+  let textStarted = false;
+  const toolUseBlocks: { id: string; name: string; partialJson: string }[] = [];
+
   try {
     console.log(`[agent] round=${roundNumber} calling LLM...`);
     const llmSpan = parentSpan.span("llm_call", { model, round: roundNumber });
 
+    // Pass signal so the SDK actually tears down the HTTP connection on abort,
+    // stopping token generation at the provider instead of just ignoring the response.
     const stream = client.messages.stream({
       model,
       max_tokens: maxTokens,
@@ -73,16 +80,15 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
         : topP !== undefined
           ? { top_p: topP }
           : {}),
-    });
+    }, { signal });
 
-    const assistantParts: MessagePart[] = [];
     let stopReason: string | null = null;
     let firstTokenMarked = false;
-    let textStarted = false;
-    const toolUseBlocks: { id: string; name: string; partialJson: string }[] = [];
 
     // ── Stream processing ──
     for await (const event of stream) {
+      if (signal.aborted) break;
+
       if (event.type === "content_block_start") {
         const block = event.content_block;
         if (block.type === "text") {
@@ -141,6 +147,13 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
     }
     for (const block of toolUseBlocks) {
       sse.writeEvent(EventType.TOOL_CALL_END, { toolCallId: block.id });
+    }
+
+    // Abort (loop exited via break) — return partial content
+    if (signal.aborted) {
+      llmSpan.end();
+      sse.writeEvent(EventType.STEP_FINISHED, { stepName: `round:${roundNumber}` });
+      return { stopReason: "abort", assistantParts };
     }
 
     // Capture token usage
@@ -283,6 +296,20 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       ],
     };
   } catch (err) {
+    // Abort throws from the Anthropic SDK — return partial content, not an error
+    if (signal.aborted) {
+      if (textStarted) {
+        sse.writeEvent(EventType.TEXT_MESSAGE_END, { messageId });
+      }
+      for (const block of toolUseBlocks) {
+        sse.writeEvent(EventType.TOOL_CALL_END, { toolCallId: block.id });
+      }
+      sse.writeEvent(EventType.STEP_FINISHED, {
+        stepName: `round:${roundNumber}`,
+      });
+      return { stopReason: "abort", assistantParts };
+    }
+
     const message = err instanceof Error ? err.message : String(err);
     sse.writeEvent(EventType.RUN_ERROR, { message });
     sse.writeEvent(EventType.STEP_FINISHED, {
