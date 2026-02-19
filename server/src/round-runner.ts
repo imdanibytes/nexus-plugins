@@ -61,9 +61,10 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
   let textStarted = false;
   const toolUseBlocks: { id: string; name: string; partialJson: string }[] = [];
 
+  const llmSpan = parentSpan.span("llm_call", { model, round: roundNumber });
+
   try {
     console.log(`[agent] round=${roundNumber} calling LLM...`);
-    const llmSpan = parentSpan.span("llm_call", { model, round: roundNumber });
 
     // Pass signal so the SDK actually tears down the HTTP connection on abort,
     // stopping token generation at the provider instead of just ignoring the response.
@@ -298,6 +299,9 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
   } catch (err) {
     // Abort throws from the Anthropic SDK — return partial content, not an error
     if (signal.aborted) {
+      llmSpan.setMetadata("aborted", true);
+      llmSpan.mark("abort");
+      llmSpan.end();
       if (textStarted) {
         sse.writeEvent(EventType.TEXT_MESSAGE_END, { messageId });
       }
@@ -310,6 +314,8 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       return { stopReason: "abort", assistantParts };
     }
 
+    llmSpan.setMetadata("error", true);
+    llmSpan.end();
     const message = err instanceof Error ? err.message : String(err);
     sse.writeEvent(EventType.RUN_ERROR, { message });
     sse.writeEvent(EventType.STEP_FINISHED, {

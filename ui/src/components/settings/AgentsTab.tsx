@@ -8,7 +8,8 @@ import {
   type Agent,
 } from "@/api/client.js";
 import { AgentEditor } from "./AgentEditor.js";
-import { Button, Badge } from "@imdanibytes/nexus-ui";
+import { ModelTiersSection } from "./ModelTiersSection.js";
+import { Button, Badge, Separator } from "@imdanibytes/nexus-ui";
 
 export function AgentsTab() {
   const { agents, activeAgentId, setAgents, setActiveAgentId, providers, setProviders } =
@@ -61,6 +62,10 @@ export function AgentsTab() {
 
   return (
     <div className="space-y-5">
+      <ModelTiersSection agents={agents} />
+
+      <Separator />
+
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">Agents</h3>

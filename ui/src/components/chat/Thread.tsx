@@ -30,6 +30,7 @@ import { MarkdownText } from "@/components/chat/MarkdownText.js";
 import { ToolFallback } from "@/components/chat/ToolFallback.js";
 import { TooltipIconButton } from "@/components/chat/tooltip-icon-button.js";
 import { Composer } from "@/components/chat/Composer.js";
+import { SuggestionChips } from "@/components/chat/SuggestionChips.js";
 import {
   cn,
   Sheet,
@@ -134,6 +135,7 @@ export const Thread: FC = () => {
               <ArrowDownIcon />
             </TooltipIconButton>
           )}
+          <SuggestionChips onSelect={sendMessage} isStreaming={isStreaming} />
           <Composer
             onSend={sendMessage}
             onCancel={abort}

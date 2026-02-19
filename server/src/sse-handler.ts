@@ -54,9 +54,17 @@ export async function handleSseRoute(
 
     const conversationId = rawConvId || uuidv4();
 
+    // Abort any in-flight turn on the same conversation before starting a new one.
+    // This handles the race where the user cancels and immediately sends a new message
+    // before the old turn has finished unwinding.
+    if (activeTurn && activeTurn.conversationId === conversationId) {
+      activeTurn.abort.abort();
+    }
+
     // Create abort controller
     const abort = new AbortController();
-    activeTurn = { conversationId, abort };
+    const turn: ActiveTurn = { conversationId, abort };
+    activeTurn = turn;
 
     // Create an SseWriter that pushes events to the broadcast hub
     const writer = hub.createCollectingWriter(conversationId);
@@ -75,7 +83,11 @@ export async function handleSseRoute(
       const message = err instanceof Error ? err.message : String(err);
       json(res, 500, { error: message, conversationId });
     } finally {
-      activeTurn = null;
+      // Only clear if we're still the active turn — a newer turn may have
+      // already replaced us while we were unwinding from an abort.
+      if (activeTurn === turn) {
+        activeTurn = null;
+      }
     }
 
     return true;

@@ -109,6 +109,12 @@ export class SpanHandle {
     this.markers.push({ label, absoluteMs: performance.now() });
   }
 
+  /** Merge a key into this span's metadata. */
+  setMetadata(key: string, value: unknown): void {
+    if (!this.metadata) this.metadata = {};
+    this.metadata[key] = value;
+  }
+
   /** End this span and record it. Safe to call multiple times. */
   end(): void {
     if (this.ended) return;
