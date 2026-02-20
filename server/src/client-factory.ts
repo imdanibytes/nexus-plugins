@@ -43,12 +43,13 @@ async function buildClient(provider: Provider): Promise<Anthropic> {
     case "bedrock": {
       // Dynamic import — @anthropic-ai/bedrock-sdk is optional
       const { AnthropicBedrock } = await import("@anthropic-ai/bedrock-sdk");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK overload types drift between versions
       return new AnthropicBedrock({
         awsRegion: provider.awsRegion,
         awsAccessKey: provider.awsAccessKeyId,
         awsSecretKey: provider.awsSecretAccessKey,
         awsSessionToken: provider.awsSessionToken,
-      }) as unknown as Anthropic;
+      } as any) as unknown as Anthropic;
     }
 
     case "openai-compatible":
