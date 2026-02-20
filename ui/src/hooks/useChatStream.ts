@@ -214,11 +214,54 @@ async function consumeStream(
     });
   }
 
+  // Track the runId so we can drop stale events from a previous
+  // (cancelled) turn that are still in flight on the SSE connection.
+  let currentRunId: string | null = null;
+
+  // Drain mode: on abort, immediately finalize the UI but keep consuming
+  // events so timing/usage metadata from the server is captured and persisted.
+  let draining = false;
+  let drainTimeout: ReturnType<typeof setTimeout> | null = null;
+
   try {
     for await (const event of stream) {
-      if (signal.aborted) break;
+      // Enter drain mode on first check after abort signal
+      if (signal.aborted && !draining) {
+        draining = true;
+        // Immediately update UI — stop showing streaming state
+        useThreadStore.getState().finalizeStreaming(conversationId, {
+          type: "incomplete",
+          reason: "aborted",
+        }, metadata);
+        // Safety: force-end if server doesn't send RUN_FINISHED within 5s
+        drainTimeout = setTimeout(() => {
+          eventBus.endSubscription(conversationId);
+        }, 5_000);
+      }
+
+      // In drain mode, only process metadata and terminal events
+      if (draining) {
+        if (
+          event.type !== EventType.CUSTOM &&
+          event.type !== EventType.RUN_FINISHED &&
+          event.type !== EventType.RUN_ERROR &&
+          event.type !== EventType.RUN_STARTED
+        ) {
+          continue;
+        }
+      }
+
+      // Once we know our runId, drop events from other runs.
+      if (currentRunId && event.runId && event.runId !== currentRunId) {
+        continue;
+      }
 
       switch (event.type) {
+        case EventType.RUN_STARTED: {
+          currentRunId = (event.runId as string) ?? null;
+          break;
+        }
+
         case EventType.TEXT_MESSAGE_START: {
           parts.push({ type: "text", text: "" });
           break;
@@ -247,7 +290,7 @@ async function consumeStream(
             toolCallId: event.toolCallId as string,
             toolName: event.toolCallName as string,
             args: {},
-            argsText: "{}",
+            argsText: "",
             status: { type: "running" },
           });
           pushToStore();
@@ -323,18 +366,40 @@ async function consumeStream(
                 mode: val.mode ?? "general",
               });
             }
+          } else if (name === "follow_up_suggestions") {
+            const val = event.value as { suggestions?: string[] };
+            if (val?.suggestions && conversationId) {
+              useThreadStore.getState().setSuggestions(conversationId, val.suggestions);
+            }
+          } else if (name === "loop_detected") {
+            // Loop detection — add a system notice to the message parts
+            const val = event.value as { rounds?: number; reason?: string };
+            const notice = val?.reason === "max_textless"
+              ? `Loop detected — agent made ${val?.rounds ?? "several"} consecutive tool calls without producing text. Stopped automatically.`
+              : `Loop detected after ${val?.rounds ?? "several"} rounds. Stopped automatically.`;
+            parts.push({ type: "text", text: `\n\n---\n*${notice}*` });
+            pushToStore();
           }
           break;
         }
 
         case EventType.RUN_FINISHED: {
+          // Drop RUN_FINISHED from a stale run (arrived before our RUN_STARTED)
+          if (!currentRunId) break;
+
           const result = event.result as {
+            stopReason?: string;
             pendingToolCalls?: PendingToolCall[];
           } | undefined;
 
+          // Capture stopReason in message metadata
+          if (result?.stopReason) {
+            metadata = { ...metadata, stopReason: result.stopReason };
+          }
+
           const pending = result?.pendingToolCalls;
 
-          if (pending && pending.length > 0) {
+          if (!draining && pending && pending.length > 0) {
             // Frontend tools need execution — run ends, we execute and re-POST
             await handlePendingToolCalls(
               conversationId,
@@ -349,12 +414,15 @@ async function consumeStream(
             return; // handlePendingToolCalls takes over from here
           }
 
-          // Normal completion — just let the stream end
+          // Normal completion (or drain finishing) — end the stream
           eventBus.endSubscription(conversationId);
           break;
         }
 
         case EventType.RUN_ERROR: {
+          // Drop RUN_ERROR from a stale run (arrived before our RUN_STARTED)
+          if (!currentRunId) break;
+
           console.error("Stream error:", event.message);
           useThreadStore.getState().finalizeStreaming(
             conversationId,
@@ -371,12 +439,36 @@ async function consumeStream(
       }
     }
 
-    // Explicit abort (Stop button)
+    // Explicit abort (Stop button) — UI was already finalized in drain mode above.
+    // Persist the partial message with accumulated metadata (timing, usage, etc.).
+    if (drainTimeout) clearTimeout(drainTimeout);
     if (signal.aborted) {
-      useThreadStore.getState().finalizeStreaming(conversationId, {
-        type: "incomplete",
-        reason: "aborted",
-      });
+      // If drain mode never triggered (abort before first event), finalize now
+      if (!draining) {
+        useThreadStore.getState().finalizeStreaming(conversationId, {
+          type: "incomplete",
+          reason: "aborted",
+        }, metadata);
+      }
+
+      if (turnCtx) {
+        const convId = turnCtx.conversationId;
+        const store = useThreadStore.getState();
+
+        if (!turnCtx.skipUserPersist) {
+          await store.persistMessage(convId, turnCtx.userMessage, turnCtx.parentId);
+        }
+
+        const assistantMsg: ChatMessage = {
+          id: turnCtx.assistantMessageId,
+          role: "assistant",
+          parts: filteredParts(),
+          createdAt: new Date(),
+          status: { type: "incomplete", reason: "aborted" },
+          metadata,
+        };
+        await store.persistMessage(convId, assistantMsg, turnCtx.userMessage.id);
+      }
       return;
     }
 
@@ -529,6 +621,7 @@ export function useChatStream(): {
     }
 
     const store = useThreadStore.getState();
+    store.clearSuggestions(conversationId);
     const parentId = store.getLastMessageId(conversationId);
     const userMessage = store.appendUserMessage(conversationId, text);
     const assistantMessageId = store.startStreaming(conversationId);
@@ -661,7 +754,6 @@ export function useChatStream(): {
     const conversationId = useThreadListStore.getState().activeThreadId;
     if (conversationId) {
       abortTurn(conversationId);
-      eventBus.endSubscription(conversationId);
     }
     abortRef.current?.abort();
   }, []);

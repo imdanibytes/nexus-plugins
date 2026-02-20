@@ -2,6 +2,35 @@ import type { ToolHandler, ToolResult, ToolContext } from "../types.js";
 import { EventType } from "../../ag-ui-types.js";
 import { runSubAgent, type SubAgentProgress } from "../../sub-agent/runner.js";
 import { getRole } from "../../sub-agent/roles.js";
+import { getModelTier } from "../../model-tiers.js";
+import { getAgent } from "../../agents.js";
+import { getProvider } from "../../providers.js";
+import { createLlmClient } from "../../client-factory.js";
+import type { ModelTierName } from "../../types.js";
+
+/**
+ * Resolve an LLM client + model from a tier name.
+ * Returns null if the tier isn't configured or the agent/provider is missing.
+ */
+async function resolveFromTier(tierName: ModelTierName) {
+  const agentId = getModelTier(tierName);
+  if (!agentId) return null;
+
+  const agent = getAgent(agentId);
+  if (!agent) return null;
+
+  const provider = await getProvider(agent.providerId);
+  if (!provider) return null;
+
+  const client = await createLlmClient(provider);
+  return {
+    client,
+    model: agent.model,
+    maxTokens: agent.maxTokens ?? 8192,
+    temperature: agent.temperature,
+    agentName: agent.name,
+  };
+}
 
 export const delegateTool: ToolHandler = {
   definition: {
@@ -12,15 +41,17 @@ export const delegateTool: ToolHandler = {
       "Do NOT use for simple questions you can answer directly — delegation has latency and token cost. " +
       "The sub-agent has NO access to conversation history; pass all relevant context (file contents, requirements, code) via the context parameter. " +
       "Built-in roles: architect (designs systems), planner (decomposes into tasks), reviewer (code quality), security (vulnerability audit), tester (test plans). " +
-      "Use role='custom' with systemPrompt for anything else. Returns the sub-agent's text output for your review.",
+      "Each role maps to a model tier (powerful/balanced/fast) — configure tiers in Settings → Agents. " +
+      "Use role='custom' with systemPrompt for anything else. Optionally specify tier to override the default. " +
+      "Returns the sub-agent's text output for your review.",
     input_schema: {
       type: "object",
       properties: {
         role: {
           type: "string",
           description:
-            "Built-in role: 'architect' (designs systems), 'planner' (decomposes into tasks), " +
-            "'reviewer' (code review), 'security' (vulnerability audit), 'tester' (test plans). " +
+            "Built-in role: 'architect' (designs systems, powerful tier), 'planner' (decomposes into tasks, balanced tier), " +
+            "'reviewer' (code review, powerful tier), 'security' (vulnerability audit, powerful tier), 'tester' (test plans, balanced tier). " +
             "Use 'custom' with systemPrompt for anything else.",
         },
         goal: {
@@ -36,6 +67,14 @@ export const delegateTool: ToolHandler = {
         systemPrompt: {
           type: "string",
           description: "Custom system prompt (used when role is 'custom')",
+        },
+        tier: {
+          type: "string",
+          enum: ["fast", "balanced", "powerful"],
+          description:
+            "Override the model tier for this delegation. By default, the role's tier is used " +
+            "(architect/reviewer/security → powerful, planner/tester → balanced). " +
+            "Use 'fast' for simple tasks like find/replace or formatting.",
         },
         maxRounds: {
           type: "number",
@@ -55,18 +94,11 @@ export const delegateTool: ToolHandler = {
     const goal = (args.goal as string) || "";
     const context = (args.context as string) || "";
     const customPrompt = (args.systemPrompt as string) || "";
+    const tierOverride = args.tier as ModelTierName | undefined;
     const maxRoundsOverride = args.maxRounds as number | undefined;
 
     if (!goal) {
       return { tool_use_id: toolUseId, content: "No goal provided", is_error: true };
-    }
-
-    if (!ctx.client || !ctx.model) {
-      return {
-        tool_use_id: toolUseId,
-        content: "LLM client not available for delegation",
-        is_error: true,
-      };
     }
 
     // Resolve role template
@@ -82,25 +114,51 @@ export const delegateTool: ToolHandler = {
       };
     }
 
+    // Resolve LLM config: tier override → role's default tier → parent agent's config
+    const effectiveTier = tierOverride ?? template?.tier;
+    const tierConfig = effectiveTier ? await resolveFromTier(effectiveTier) : null;
+
+    const client = tierConfig?.client ?? ctx.client;
+    const model = tierConfig?.model ?? ctx.model;
+    const maxTokens = tierConfig?.maxTokens ?? ctx.maxTokens ?? 8192;
+    const temperature = tierConfig?.temperature ?? ctx.temperature;
+
+    if (!client || !model) {
+      return {
+        tool_use_id: toolUseId,
+        content: effectiveTier
+          ? `Tier "${effectiveTier}" is not configured (no agent assigned). Configure tiers in Settings → Agents.`
+          : "LLM client not available for delegation",
+        is_error: true,
+      };
+    }
+
     // Build scoped messages — just the goal + context
     const userContent = context
       ? `${goal}\n\n---\n\nContext:\n${context}`
       : goal;
 
     // Notify UI that a sub-agent is starting
+    const tierLabel = tierConfig
+      ? `${effectiveTier} tier (${tierConfig.agentName})`
+      : "parent config";
+
     ctx.sse.writeEvent(EventType.CUSTOM, {
       name: "sub_agent_started",
-      value: { role, goal: goal.slice(0, 200) },
+      value: { role, goal: goal.slice(0, 200), tier: effectiveTier, model },
     });
 
-    console.log(`[delegate] role=${role} maxRounds=${maxRounds} goal="${goal.slice(0, 80)}..."`);
+    console.log(
+      `[delegate] role=${role} tier=${effectiveTier ?? "none"} model=${model} ` +
+      `via=${tierLabel} maxRounds=${maxRounds} goal="${goal.slice(0, 80)}..."`,
+    );
 
     try {
       const result = await runSubAgent({
-        client: ctx.client,
-        model: ctx.model,
-        maxTokens: ctx.maxTokens ?? 8192,
-        temperature: ctx.temperature,
+        client,
+        model,
+        maxTokens,
+        temperature,
         systemPrompt,
         messages: [{ role: "user", content: userContent }],
         maxRounds,
@@ -118,6 +176,8 @@ export const delegateTool: ToolHandler = {
         name: "sub_agent_complete",
         value: {
           role,
+          tier: effectiveTier,
+          model,
           rounds: result.rounds,
           tokenUsage: result.tokenUsage,
           toolCallCount: result.toolCalls.length,
@@ -125,8 +185,8 @@ export const delegateTool: ToolHandler = {
       });
 
       console.log(
-        `[delegate] complete rounds=${result.rounds} ` +
-        `tokens=${result.tokenUsage.input}+${result.tokenUsage.output} ` +
+        `[delegate] complete role=${role} tier=${effectiveTier ?? "none"} ` +
+        `rounds=${result.rounds} tokens=${result.tokenUsage.input}+${result.tokenUsage.output} ` +
         `tools=${result.toolCalls.length}`,
       );
 
@@ -140,7 +200,7 @@ export const delegateTool: ToolHandler = {
 
       ctx.sse.writeEvent(EventType.CUSTOM, {
         name: "sub_agent_complete",
-        value: { role, error: message },
+        value: { role, tier: effectiveTier, error: message },
       });
 
       return {

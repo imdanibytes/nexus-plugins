@@ -18,12 +18,14 @@ export function useAutoScroll() {
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    sentinelRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = containerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
   const scrollToBottomIfNeeded = useCallback(() => {
     if (isAtBottom) {
-      sentinelRef.current?.scrollIntoView({ behavior: "instant" as ScrollBehavior });
+      const el = containerRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
     }
   }, [isAtBottom]);
 

@@ -21,6 +21,9 @@ import { resolvePrice, calculateCost } from "./compaction/pricing.js";
 import type { Conversation, ConversationUsage, MessagePart, SseWriter, WireMessage } from "./types.js";
 import type { ToolDefinition } from "./tools/types.js";
 import { EventType, type PendingToolCall, type ResolvedToolResult } from "./ag-ui-types.js";
+import { generateTitle } from "./mechanics/auto-title.js";
+import { generateFollowUps } from "./mechanics/follow-ups.js";
+import { checkLoopGuard, createLoopGuardState, updateLoopGuard } from "./mechanics/loop-guard.js";
 
 // Re-export WireMessage for consumers (sse-handler.ts etc.)
 export type { WireMessage } from "./types.js";
@@ -257,6 +260,7 @@ async function _runAgentTurnInner(
   const maxRounds = settings.max_tool_rounds;
   const allAssistantParts: MessagePart[] = [];
   let turnResult: TurnResult = {};
+  const loopGuard = createLoopGuardState();
 
   sse.writeEvent(EventType.RUN_STARTED, {
     threadId: conversationId,
@@ -352,8 +356,36 @@ async function _runAgentTurnInner(
 
     roundSpan.end();
 
+    // ── Loop guard ──
+    const hadText = result.assistantParts.some(
+      (p) => p.type === "text" && (p as { type: "text"; text: string }).text?.trim(),
+    );
+    const roundToolNames = result.assistantParts
+      .filter((p) => p.type === "tool-call")
+      .map((p) => (p as { type: "tool-call"; name: string }).name);
+    updateLoopGuard(loopGuard, hadText, roundToolNames);
+
+    const guard = checkLoopGuard(loopGuard);
+    if (guard.action === "break") {
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "loop_detected",
+        value: { rounds: round, reason: guard.reason },
+      });
+      console.log(`[loop-guard] breaking after ${round} rounds: ${guard.reason}`);
+      break;
+    }
+
     // Continue the tool loop or break
     if (result.stopReason === "tool_use" && result.newApiMessages) {
+      // Inject nudge message if loop guard says so
+      if (guard.action === "nudge" && guard.message) {
+        apiMessages.push({ role: "user", content: guard.message });
+        sse.writeEvent(EventType.CUSTOM, {
+          name: "loop_warning",
+          value: { rounds: round, reason: guard.reason },
+        });
+        console.log(`[loop-guard] nudge at round ${round}: ${guard.reason}`);
+      }
       apiMessages.push(...result.newApiMessages);
       truncateOldToolResults(apiMessages, 6);
       continue;
@@ -370,6 +402,44 @@ async function _runAgentTurnInner(
   }
 
   // ── 8. Cleanup ──
+  const wasAborted = abortController.signal.aborted;
+  if (wasAborted) {
+    turnSpan.mark("abort");
+    turnSpan.setMetadata("aborted", true);
+  }
+
+  // ── 8b. Post-turn mechanics (parallel: auto-title + follow-ups) ──
+  if (!wasAborted && !turnResult.pendingToolCalls) {
+    const fallback = { client: config.client, model: config.model };
+    const signal = abortController.signal;
+
+    const titleSpan = turnSpan.span("auto_title");
+    const followUpSpan = turnSpan.span("follow_ups");
+
+    const [newTitle, suggestions] = await Promise.all([
+      generateTitle(conv.title, wireMessages, fallback, signal),
+      generateFollowUps(wireMessages, fallback, signal),
+    ]);
+
+    if (newTitle) {
+      conv.title = newTitle;
+      conv.updatedAt = Date.now();
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "title_update",
+        value: { title: newTitle },
+      });
+    }
+    titleSpan.end();
+
+    if (suggestions && suggestions.length > 0) {
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "follow_up_suggestions",
+        value: { suggestions },
+      });
+    }
+    followUpSpan.end();
+  }
+
   abortController.abort();
   turnSpan.end();
   const timingSpans = timing.toJSON();

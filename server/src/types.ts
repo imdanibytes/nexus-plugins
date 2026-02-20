@@ -32,6 +32,15 @@ export interface ToolFilter {
   tools: string[];
 }
 
+// ── Model tiers ──
+
+export type ModelTierName = "fast" | "balanced" | "powerful";
+
+/** Each tier maps to an agent ID (or null if unconfigured). */
+export type ModelTiers = Record<ModelTierName, string | null>;
+
+export const MODEL_TIER_NAMES: ModelTierName[] = ["fast", "balanced", "powerful"];
+
 export interface Agent {
   id: string;
   name: string;

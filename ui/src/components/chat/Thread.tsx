@@ -34,6 +34,7 @@ import { MarkdownText } from "@/components/chat/MarkdownText.js";
 import { ToolFallback } from "@/components/chat/ToolFallback.js";
 import { TooltipIconButton } from "@/components/chat/tooltip-icon-button.js";
 import { Composer } from "@/components/chat/Composer.js";
+import { SuggestionChips } from "@/components/chat/SuggestionChips.js";
 import {
   Dropdown,
   DropdownTrigger,
@@ -136,6 +137,7 @@ export const Thread: FC = () => {
               <ArrowDownIcon />
             </TooltipIconButton>
           )}
+          <SuggestionChips onSelect={sendMessage} isStreaming={isStreaming} />
           <Composer
             onSend={sendMessage}
             onCancel={abort}
@@ -394,7 +396,9 @@ const AssistantMessage: FC<{
   isStreaming: boolean;
   onReload: () => void;
 }> = ({ message, isStreaming, onReload }) => {
-  const hasError = message.status?.type === "incomplete";
+  const hasError =
+    message.status?.type === "incomplete" &&
+    message.status.reason !== "aborted";
   const isActiveStream = message.status?.type === "streaming";
   const visibleParts = message.parts.filter(
     (p) => p.type === "text" ? (p as { text: string }).text.length > 0 : true,

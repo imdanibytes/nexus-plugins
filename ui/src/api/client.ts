@@ -140,6 +140,21 @@ export interface Agent {
   updatedAt: number;
 }
 
+// ── Model tiers ──
+
+export type ModelTierName = "fast" | "balanced" | "powerful";
+
+/** Each tier maps to an agent ID (or null if unconfigured). */
+export type ModelTiers = Record<ModelTierName, string | null>;
+
+export const MODEL_TIER_NAMES: ModelTierName[] = ["fast", "balanced", "powerful"];
+
+export const MODEL_TIER_LABELS: Record<ModelTierName, { label: string; description: string }> = {
+  fast: { label: "Fast", description: "Quick & efficient — best for simple tasks" },
+  balanced: { label: "Balanced", description: "Everyday use — good mix of speed and quality" },
+  powerful: { label: "Powerful", description: "Maximum capability — complex reasoning and analysis" },
+};
+
 // ── Tool settings types ──
 
 export interface ToolSettings {
@@ -415,6 +430,22 @@ export async function discoverModels(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint, apiKey }),
+  });
+  return res.json();
+}
+
+// ── Model tiers ──
+
+export async function fetchModelTiers(): Promise<ModelTiers> {
+  const res = await fetch("/api/model-tiers");
+  return res.json();
+}
+
+export async function updateModelTiers(tiers: ModelTiers): Promise<ModelTiers> {
+  const res = await fetch("/api/model-tiers", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(tiers),
   });
   return res.json();
 }

@@ -152,6 +152,7 @@ class EventBus {
       stream.resolve({ value: undefined as never, done: true });
       stream.resolve = null;
     }
+    this.streams.delete(threadId);
   }
 
   // ── Internal dispatch ──
@@ -191,6 +192,9 @@ class EventBus {
       this.streams.set(threadId, stream);
       return;
     }
+
+    // Stream was ended (cancelled/finished) — drop stale events
+    if (stream.done) return;
 
     if (stream.resolve) {
       stream.resolve({ value: event, done: false });

@@ -46,6 +46,7 @@ export interface ChatMessage {
     mcpSource?: boolean;
     timingSpans?: TimingSpan[];
     profileName?: string;
+    stopReason?: string;
   };
 }
 
@@ -58,6 +59,7 @@ export interface ConvState {
   repository: MessageNode[];
   childrenMap: Record<string, string[]>;
   branchSelections: Record<string, number>;
+  suggestions: string[];
 }
 
 /** Stable empty default — same reference every time, avoids re-renders */
@@ -68,6 +70,7 @@ export const EMPTY_CONV: ConvState = {
   repository: [],
   childrenMap: {},
   branchSelections: {},
+  suggestions: [],
 };
 
 // ── Store ──
@@ -113,6 +116,10 @@ interface ThreadState {
     direction: "prev" | "next",
   ) => void;
   getLastMessageId: (convId: string) => string | null;
+
+  // Follow-up suggestions
+  setSuggestions: (convId: string, suggestions: string[]) => void;
+  clearSuggestions: (convId: string) => void;
 }
 
 let msgCounter = 0;
@@ -311,5 +318,13 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
     const conv = get().conversations[convId];
     if (!conv || conv.messages.length === 0) return null;
     return conv.messages[conv.messages.length - 1].id;
+  },
+
+  setSuggestions: (convId, suggestions) => {
+    set((s) => patchConv(s, convId, { suggestions }));
+  },
+
+  clearSuggestions: (convId) => {
+    set((s) => patchConv(s, convId, { suggestions: [] }));
   },
 }));

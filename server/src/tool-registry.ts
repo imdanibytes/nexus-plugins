@@ -4,7 +4,6 @@ import type { ToolDefinition } from "./tools/types.js";
 import type { ToolFilter } from "./types.js";
 import { getToolSettings } from "./tool-settings.js";
 import type { AgentMode } from "./tasks/types.js";
-import { setTitleTool } from "./tools/handlers/local.js";
 import { delegateTool } from "./tools/handlers/delegate.js";
 import {
   setModeTool,
@@ -74,7 +73,6 @@ function applyToolFilters(
 // only sees tools appropriate for its current mode.
 
 const INTERNAL_TOOL_NAMES = new Set([
-  "_nexus_set_title",
   "delegate",
   "workflow_set_mode",
   "task_approve_plan",
@@ -87,7 +85,7 @@ const INTERNAL_TOOL_NAMES = new Set([
 
 const MODE_TOOLS: Record<AgentMode, { internal: Set<string>; allowMcp: boolean }> = {
   general: {
-    internal: new Set(["_nexus_set_title", "workflow_set_mode"]),
+    internal: new Set(["workflow_set_mode"]),
     allowMcp: true,
   },
   discovery: {
@@ -137,7 +135,6 @@ export async function getToolRegistry(
   agentMode?: AgentMode,
 ): Promise<ToolRegistry> {
   const executor = new ToolExecutor();
-  executor.register(setTitleTool);
   executor.register(delegateTool);
   executor.register(setModeTool);
   executor.register(approvePlanTool);

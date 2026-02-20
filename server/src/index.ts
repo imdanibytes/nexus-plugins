@@ -33,8 +33,8 @@ import { getToolSettings, updateToolSettings } from "./tool-settings.js";
 import { startToolEventListener } from "./tool-events.js";
 import { probeEndpoint, probeProvider } from "./discovery.js";
 import { getSettings, updateSettings } from "./settings.js";
+import { getModelTiers, setModelTiers } from "./model-tiers.js";
 import { ToolExecutor } from "./tools/executor.js";
-import { setTitleTool } from "./tools/handlers/local.js";
 import { fetchMcpToolHandlers } from "./tools/handlers/remote.js";
 import { handleMcpCall } from "./mcp-handler.js";
 import { handleSseRoute } from "./sse-handler.js";
@@ -235,6 +235,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ── Model tiers ──
+
+    if (method === "GET" && url === "/api/model-tiers") {
+      json(res, 200, getModelTiers());
+      return;
+    }
+
+    if (method === "PUT" && url === "/api/model-tiers") {
+      const body = JSON.parse(await readBody(req));
+      setModelTiers(body);
+      json(res, 200, getModelTiers());
+      return;
+    }
+
     const agentMatch = url.match(/^\/api\/agents\/([a-f0-9-]+)$/);
     if (agentMatch) {
       const id = agentMatch[1];
@@ -285,7 +299,6 @@ const server = http.createServer(async (req, res) => {
 
     if (method === "GET" && url === "/api/tools") {
       const executor = new ToolExecutor();
-      executor.register(setTitleTool);
       executor.registerAll(await fetchMcpToolHandlers());
       const tools = executor.definitions().map((d) => ({
         name: d.name,

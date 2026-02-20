@@ -1,8 +1,12 @@
+import type { ModelTierName } from "../types.js";
+
 export interface RoleTemplate {
   systemPrompt: string;
   /** Tool name patterns this role should have access to */
   suggestedTools?: string[];
   maxRounds: number;
+  /** Which model tier to use — resolved at runtime to an agent */
+  tier: ModelTierName;
 }
 
 export const ROLES: Record<string, RoleTemplate> = {
@@ -20,6 +24,7 @@ export const ROLES: Record<string, RoleTemplate> = {
       "Keep plans concise and actionable. No hand-waving.",
     ].join("\n"),
     maxRounds: 5,
+    tier: "powerful",
   },
 
   planner: {
@@ -36,6 +41,7 @@ export const ROLES: Record<string, RoleTemplate> = {
       "Identify which tasks can run in parallel.",
     ].join("\n"),
     maxRounds: 3,
+    tier: "balanced",
   },
 
   reviewer: {
@@ -53,6 +59,7 @@ export const ROLES: Record<string, RoleTemplate> = {
       "Don't comment on style unless it affects correctness.",
     ].join("\n"),
     maxRounds: 3,
+    tier: "powerful",
   },
 
   security: {
@@ -70,6 +77,7 @@ export const ROLES: Record<string, RoleTemplate> = {
       "Provide exploit scenarios and remediation steps.",
     ].join("\n"),
     maxRounds: 3,
+    tier: "powerful",
   },
 
   tester: {
@@ -86,6 +94,7 @@ export const ROLES: Record<string, RoleTemplate> = {
       "Prioritize tests that catch real bugs over tests that just increase coverage numbers.",
     ].join("\n"),
     maxRounds: 3,
+    tier: "balanced",
   },
 };
 
