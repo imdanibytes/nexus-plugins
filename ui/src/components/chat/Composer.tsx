@@ -53,7 +53,7 @@ export const Composer: FC<ComposerProps> = ({
   }, []);
 
   return (
-    <div className="aui-composer-root relative flex w-full flex-col rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-xl px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-primary/40 has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-primary/20">
+    <div className="aui-composer-root relative flex w-full flex-col rounded-xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-100/80 backdrop-blur-2xl px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-primary/40 has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-primary/20">
       <textarea
         ref={textareaRef}
         value={text}

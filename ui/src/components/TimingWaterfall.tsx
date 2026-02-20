@@ -96,7 +96,7 @@ function getGridlines(totalMs: number): number[] {
 }
 
 export function TimingWaterfall({ spans }: { spans: TimingSpan[] }) {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { rows, totalMs, gridlines } = useMemo(() => {
     const tree = buildTree(spans);
@@ -141,17 +141,16 @@ export function TimingWaterfall({ spans }: { spans: TimingSpan[] }) {
           const leftPct = (span.startMs / totalMs) * 100;
           const widthPct = Math.max((span.durationMs / totalMs) * 100, 0.3);
           const isContainer = span.name === "turn" || span.name.startsWith("round:") || span.name === "tool_execution" || span.name === "setup";
-          const isHovered = hoveredId === span.id;
+          const isSelected = selectedId === span.id;
 
           return (
             <div
               key={span.id}
               className={cn(
-                "flex items-center h-6 group",
-                isHovered ? "bg-default-100/30" : "hover:bg-default-100/20",
+                "flex items-center h-6 group cursor-pointer",
+                isSelected ? "bg-primary/10" : "hover:bg-default-100/20",
               )}
-              onMouseEnter={() => setHoveredId(span.id)}
-              onMouseLeave={() => setHoveredId(null)}
+              onClick={() => setSelectedId(isSelected ? null : span.id)}
             >
               <div
                 className="w-40 shrink-0 px-1 truncate"
@@ -200,7 +199,7 @@ export function TimingWaterfall({ spans }: { spans: TimingSpan[] }) {
                     >
                       <div className="w-2 h-2 rotate-45 bg-rose-500 dark:bg-rose-400 border border-rose-700 dark:border-rose-300 -translate-x-1 cursor-pointer" />
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/marker:block pointer-events-none">
-                        <div className="whitespace-nowrap rounded bg-content1 border border-default-200/50 px-1.5 py-0.5 text-[10px] text-foreground shadow-md">
+                        <div className="whitespace-nowrap rounded bg-default-50/80 backdrop-blur-xl border border-default-200/50 px-1.5 py-0.5 text-[10px] text-foreground shadow-md">
                           {marker.label} <span className="text-default-500">{formatDuration(marker.timeMs)}</span>
                         </div>
                       </div>
@@ -237,26 +236,35 @@ export function TimingWaterfall({ spans }: { spans: TimingSpan[] }) {
         </div>
       </div>
 
-      {/* Hover detail */}
-      {hoveredId && (() => {
-        const span = spans.find((s) => s.id === hoveredId);
+      {/* Selected span detail — click-to-select like Chrome DevTools */}
+      {selectedId && (() => {
+        const span = spans.find((s) => s.id === selectedId);
         if (!span) return null;
         const hasMetadata = span.metadata && Object.keys(span.metadata).length > 0;
         const hasMarkers = span.markers && span.markers.length > 0;
-        if (!hasMetadata && !hasMarkers) return null;
+        if (!hasMetadata && !hasMarkers) return (
+          <div className="mt-2 border-t border-default-200/50 pt-2 text-default-400 text-center">
+            No metadata for {formatName(span.name)}
+          </div>
+        );
         return (
-          <div className="mt-2 pt-2 border-t border-default-200/50 text-default-500 space-y-1">
+          <div className="mt-2 border-t border-default-200/50 pt-2 text-default-500 space-y-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-foreground">{formatName(span.name)}</span>
+              <span className="tabular-nums">{formatDuration(span.durationMs)}</span>
+            </div>
             {hasMetadata && (
-              <div>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                 {Object.entries(span.metadata!).map(([k, v]) => (
-                  <span key={k} className="mr-3">
-                    <span className="text-foreground">{k}:</span> {String(v)}
+                  <span key={k}>
+                    <span className="text-default-400">{k}:</span>{" "}
+                    <span className="text-foreground">{String(v)}</span>
                   </span>
                 ))}
               </div>
             )}
             {hasMarkers && (
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 pt-1">
                 {span.markers!.map((m, i) => (
                   <span key={i} className="inline-flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rotate-45 bg-rose-500 dark:bg-rose-400 inline-block" />

@@ -15,6 +15,9 @@ import {
   fetchAvailableTools,
   getActiveAgent,
 } from "./api/client.js";
+import { injectDevFixtures } from "./lib/dev-fixtures.js";
+
+const USE_DEV_FIXTURES = import.meta.env.DEV && import.meta.env.VITE_DEV_FIXTURES === "true";
 
 function NexusApp() {
   const { setAgents, setActiveAgentId, setProviders, setAvailableTools } =
@@ -22,8 +25,12 @@ function NexusApp() {
   const { settingsOpen } = useChatStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Load agents, providers, and tools on startup
+  // Dev fixtures — bypass API calls and inject dummy data
   useEffect(() => {
+    if (USE_DEV_FIXTURES) {
+      injectDevFixtures();
+      return;
+    }
     fetchAgents().then(setAgents);
     fetchProviders().then(setProviders);
     fetchAvailableTools().then(setAvailableTools);
@@ -32,11 +39,13 @@ function NexusApp() {
 
   // Load thread list on startup
   useEffect(() => {
+    if (USE_DEV_FIXTURES) return;
     useThreadListStore.getState().loadThreads();
   }, []);
 
   // Connect EventSource and register broadcast handlers
   useEffect(() => {
+    if (USE_DEV_FIXTURES) return;
     eventBus.connect();
 
     const unsubTools = eventBus.on("tools_changed", () => {
@@ -89,8 +98,8 @@ function NexusApp() {
       {/* Top bar */}
       <TopBar onMenuPress={() => setDrawerOpen(true)} />
 
-      {/* Main content — full-width conversation + task panel */}
-      <div className="flex flex-1 min-h-0">
+      {/* Main content — conversation + task panel as sibling cards */}
+      <div className="flex flex-1 min-h-0 gap-2 p-2">
         <div className="flex-1 min-w-0">
           <Thread />
         </div>

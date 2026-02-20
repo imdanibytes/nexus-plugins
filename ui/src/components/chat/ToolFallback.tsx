@@ -1,14 +1,10 @@
 import { memo, useCallback, useRef, useState, type FC } from "react";
-import {
-  AlertCircleIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronDownIcon, CopyIcon } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@imdanibytes/nexus-ui";
 import { useScrollLock } from "@/hooks/useScrollLock.js";
 import { formatToolDescription } from "@/lib/tool-descriptions.js";
+import { MarkdownText } from "@/components/chat/MarkdownText.js";
 import type { ToolCallStatus } from "@/stores/threadStore.js";
 
 const ANIMATION_DURATION = 200;
@@ -54,9 +50,10 @@ function ToolFallbackRoot({
         data-slot="tool-fallback-root"
         data-state={isOpen ? "open" : "closed"}
         className={cn(
-          "aui-tool-fallback-root group/tool-fallback-root w-full rounded-lg border border-default-200 dark:border-default-200/50 bg-default-100/80 dark:bg-default-50/30 backdrop-blur-sm py-3",
+          "aui-tool-fallback-root group/tool-fallback-root w-full cursor-pointer select-none rounded-xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl py-3",
           className,
         )}
+        onClick={handleToggle}
         style={
           {
             "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -81,10 +78,21 @@ const ToolFallbackContext = createContext<{ isOpen: boolean; toggle: () => void 
 
 type ToolStatusType = NonNullable<ToolCallStatus>["type"];
 
+const Throbber = () => (
+  <span className="aui-tool-throbber relative flex size-4 shrink-0 items-center justify-center">
+    <span className="absolute size-2 rounded-full bg-primary/80 animate-ping" />
+    <span className="relative size-2 rounded-full bg-primary" />
+  </span>
+);
+
+const StatusDot = ({ color }: { color: string }) => (
+  <span className={cn("size-2 rounded-full shrink-0", color)} />
+);
+
 const statusIconMap: Record<ToolStatusType, React.ElementType> = {
-  running: LoaderIcon,
-  complete: CheckIcon,
-  incomplete: XCircleIcon,
+  running: Throbber,
+  complete: () => <StatusDot color="bg-success" />,
+  incomplete: () => <StatusDot color="bg-danger" />,
 };
 
 function ToolFallbackTrigger({
@@ -115,10 +123,9 @@ function ToolFallbackTrigger({
       data-slot="tool-fallback-trigger"
       data-state={isOpen ? "open" : "closed"}
       className={cn(
-        "aui-tool-fallback-trigger group/trigger flex w-full items-center gap-2 px-4 text-sm transition-colors",
+        "aui-tool-fallback-trigger group/trigger flex w-full cursor-pointer items-center gap-2 px-4 text-sm transition-colors",
         className,
       )}
-      onClick={toggle}
       {...props}
     >
       <Icon
@@ -126,26 +133,17 @@ function ToolFallbackTrigger({
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-default-400",
-          isRunning && "animate-spin",
         )}
       />
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-left leading-none",
+          "aui-tool-fallback-trigger-label grow text-left leading-none",
           isCancelled && "text-default-400 line-through",
+          isRunning && "tool-pulse motion-reduce:animate-none",
         )}
       >
-        <span>{description}</span>
-        {isRunning && (
-          <span
-            aria-hidden
-            data-slot="tool-fallback-trigger-shimmer"
-            className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-          >
-            {description}
-          </span>
-        )}
+        {description}
       </span>
       <ChevronDownIcon
         data-slot="tool-fallback-trigger-chevron"
@@ -168,24 +166,67 @@ function ToolFallbackContent({
 }: React.ComponentProps<"div">) {
   const { isOpen } = useContext(ToolFallbackContext);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      data-slot="tool-fallback-content"
-      data-state={isOpen ? "open" : "closed"}
-      className={cn(
-        "aui-tool-fallback-content relative overflow-hidden text-sm outline-none",
-        className,
+    <AnimatePresence initial={false}>
+      {isOpen && (
+        <motion.div
+          data-slot="tool-fallback-content"
+          data-state="open"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className={cn(
+            "aui-tool-fallback-content overflow-hidden text-sm outline-none",
+            className,
+          )}
+          {...props}
+        >
+          <div className="mt-3 flex flex-col gap-2 border-t border-default-200/50 pt-2">{children}</div>
+        </motion.div>
       )}
-      {...props}
-    >
-      <div className="mt-3 flex flex-col gap-2 border-t border-default-200/50 pt-2">{children}</div>
-    </div>
+    </AnimatePresence>
   );
 }
 
 // ── Args / Result / Error ──
+
+// Parse args JSON into key-value pairs for display
+function parseArgs(argsText: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(argsText);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+  } catch { /* fall through */ }
+  return null;
+}
+
+function formatValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value, null, 2);
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }}
+      className="shrink-0 rounded-md p-1 text-default-400 transition-colors hover:bg-default-200/40 hover:text-default-600"
+      aria-label="Copy"
+    >
+      {copied
+        ? <CheckIcon className="size-3 text-success" />
+        : <CopyIcon className="size-3" />}
+    </button>
+  );
+}
 
 function ToolFallbackArgs({
   argsText,
@@ -193,15 +234,153 @@ function ToolFallbackArgs({
   ...props
 }: React.ComponentProps<"div"> & { argsText?: string }) {
   if (!argsText) return null;
+
+  const parsed = parseArgs(argsText);
+
+  if (parsed) {
+    const entries = Object.entries(parsed);
+    return (
+      <div
+        data-slot="tool-fallback-args"
+        className={cn("aui-tool-fallback-args px-4", className)}
+        {...props}
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-xs font-medium text-default-400">Request</p>
+          <CopyButton text={argsText} />
+        </div>
+        <div className="flex flex-col gap-1">
+          {entries.map(([key, value]) => (
+            <div key={key} className="flex gap-2 text-xs">
+              <span className="shrink-0 text-default-400 font-mono">{key}</span>
+              <pre className="whitespace-pre-wrap break-all text-default-600 font-mono">
+                {formatValue(value)}
+              </pre>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       data-slot="tool-fallback-args"
       className={cn("aui-tool-fallback-args px-4", className)}
       {...props}
     >
-      <pre className="aui-tool-fallback-args-value whitespace-pre-wrap text-default-500">
+      <div className="mb-1 flex items-center justify-between">
+        <p className="text-xs font-medium text-default-400">Request</p>
+        <CopyButton text={argsText} />
+      </div>
+      <pre className="aui-tool-fallback-args-value whitespace-pre-wrap text-xs text-default-500 font-mono">
         {argsText}
       </pre>
+    </div>
+  );
+}
+
+// Detect content type for smart rendering
+const MD_PATTERN = /(?:^#{1,6}\s|^\s*[-*]\s|\*\*|__|\[.+\]\(.+\)|^```)/m;
+
+function detectContentType(text: string): "json" | "markdown" | "plain" {
+  const trimmed = text.trim();
+  if (
+    (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+    (trimmed.startsWith("[") && trimmed.endsWith("]"))
+  ) {
+    try { JSON.parse(trimmed); return "json"; } catch { /* not json */ }
+  }
+  if (MD_PATTERN.test(trimmed)) return "markdown";
+  return "plain";
+}
+
+const MAX_LINES = 20;
+
+function truncateToLines(text: string, max: number): { truncated: string; isTruncated: boolean } {
+  const lines = text.split("\n");
+  if (lines.length <= max) return { truncated: text, isTruncated: false };
+  return { truncated: lines.slice(0, max).join("\n"), isTruncated: true };
+}
+
+function ResultContent({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [collapsedH, setCollapsedH] = useState<number | null>(null);
+  const clampRef = useRef<HTMLDivElement>(null);
+  const type = detectContentType(text);
+
+  const displayText = type === "json"
+    ? JSON.stringify(JSON.parse(text.trim()), null, 2)
+    : text;
+
+  const { isTruncated } = truncateToLines(displayText, MAX_LINES);
+
+  // Measure the clamped height (MAX_LINES worth) on mount
+  const measureRef = useCallback((node: HTMLDivElement | null) => {
+    clampRef.current = node;
+    if (node && collapsedH === null) {
+      // Temporarily clamp to MAX_LINES via line-clamp, measure, then remove
+      const style = node.style;
+      const prev = {
+        display: style.display,
+        webkitLineClamp: style.webkitLineClamp,
+        webkitBoxOrient: (style as unknown as Record<string, string>).webkitBoxOrient,
+        overflow: style.overflow,
+      };
+      style.display = "-webkit-box";
+      style.webkitLineClamp = String(MAX_LINES);
+      (style as unknown as Record<string, string>).webkitBoxOrient = "vertical";
+      style.overflow = "hidden";
+      setCollapsedH(node.offsetHeight);
+      style.display = prev.display;
+      style.webkitLineClamp = prev.webkitLineClamp;
+      (style as unknown as Record<string, string>).webkitBoxOrient = prev.webkitBoxOrient;
+      style.overflow = prev.overflow;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fadeMask = isTruncated && !expanded
+    ? { maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)", WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)" }
+    : undefined;
+
+  const content = type === "markdown" ? (
+    <div className="text-xs [&_.aui-md-p]:my-1 [&_.aui-md-p]:text-xs">
+      <MarkdownText text={displayText} />
+    </div>
+  ) : (
+    <pre className="whitespace-pre-wrap text-xs text-default-600 font-mono">
+      {displayText}
+    </pre>
+  );
+
+  const targetHeight = !isTruncated ? "auto"
+    : expanded ? "auto"
+    : (collapsedH ?? "auto");
+
+  return (
+    <div>
+      <motion.div
+        initial={false}
+        animate={{ height: targetHeight }}
+        transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
+        className="overflow-hidden"
+        style={fadeMask}
+      >
+        <div ref={measureRef}>
+          {content}
+        </div>
+      </motion.div>
+      {isTruncated && (
+        <motion.button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          className="mt-1.5 text-xs text-primary hover:text-primary/80 font-medium"
+          whileTap={{ scale: 0.97 }}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </motion.button>
+      )}
     </div>
   );
 }
@@ -212,6 +391,7 @@ function ToolFallbackResult({
   ...props
 }: React.ComponentProps<"div"> & { result?: unknown }) {
   if (result === undefined) return null;
+  const text = typeof result === "string" ? result : JSON.stringify(result, null, 2);
   return (
     <div
       data-slot="tool-fallback-result"
@@ -221,10 +401,11 @@ function ToolFallbackResult({
       )}
       {...props}
     >
-      <p className="aui-tool-fallback-result-header font-semibold text-default-800">Result:</p>
-      <pre className="aui-tool-fallback-result-content whitespace-pre-wrap text-default-500">
-        {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
-      </pre>
+      <div className="mb-1 flex items-center justify-between">
+        <p className="aui-tool-fallback-result-header text-xs font-medium text-default-400">Result</p>
+        <CopyButton text={text} />
+      </div>
+      <ResultContent text={text} />
     </div>
   );
 }

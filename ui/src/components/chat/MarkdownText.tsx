@@ -16,7 +16,7 @@ interface MarkdownTextProps {
 // Stable plugin instances — created once, not per render
 const streamdownPlugins = {
   math: createMathPlugin({ singleDollarTextMath: true }),
-  code: createCodePlugin({ themes: ["github-dark", "github-dark"] }),
+  code: createCodePlugin({ themes: ["github-light", "github-dark"] }),
 };
 
 const streamdownRemarkPlugins: import("streamdown").StreamdownProps["remarkPlugins"] = [

@@ -5,66 +5,69 @@ import {
   CircleIcon,
   XCircleIcon,
   ChevronRightIcon,
+  ChevronLeftIcon,
   ListTodoIcon,
 } from "lucide-react";
-import { Button } from "@heroui/react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button, Chip, Progress } from "@heroui/react";
 import { cn } from "@imdanibytes/nexus-ui";
 import { useTaskStore } from "@/stores/taskStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
 import { fetchTaskState } from "@/api/client.js";
 import type { Task, TaskStatus, AgentMode } from "@/api/client.js";
 
-// ── Mode badge ──
+// ── Mode chip ──
 
-const MODE_CONFIG: Record<AgentMode, { label: string; color: string }> = {
-  general: { label: "General", color: "text-default-500 bg-default-100/40" },
-  discovery: { label: "Discovery", color: "text-amber-400 bg-amber-400/10" },
-  planning: { label: "Planning", color: "text-blue-400 bg-blue-400/10" },
-  execution: { label: "Executing", color: "text-emerald-400 bg-emerald-400/10" },
-  review: { label: "Review", color: "text-purple-400 bg-purple-400/10" },
+const MODE_CONFIG: Record<AgentMode, { label: string; color: "default" | "warning" | "primary" | "success" | "secondary" }> = {
+  general: { label: "General", color: "default" },
+  discovery: { label: "Discovery", color: "warning" },
+  planning: { label: "Planning", color: "primary" },
+  execution: { label: "Executing", color: "success" },
+  review: { label: "Review", color: "secondary" },
 };
 
-const ModeBadge: FC<{ mode: AgentMode }> = ({ mode }) => {
+const ModeChip: FC<{ mode: AgentMode }> = ({ mode }) => {
   const config = MODE_CONFIG[mode];
   return (
-    <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", config.color)}>
+    <Chip size="sm" variant="flat" color={config.color} className="text-[10px] h-5">
       {config.label}
-    </span>
+    </Chip>
   );
 };
 
-// ── Status icon mapping ──
+// ── Status icon ──
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
     case "completed":
-      return <CheckCircle2Icon size={14} className="text-emerald-500 shrink-0" />;
+      return <CheckCircle2Icon size={13} className="text-success shrink-0 mt-px" />;
     case "in_progress":
-      return <CircleDotIcon size={14} className="text-blue-400 animate-pulse shrink-0" />;
+      return <CircleDotIcon size={13} className="text-primary animate-pulse shrink-0 mt-px" />;
     case "failed":
-      return <XCircleIcon size={14} className="text-red-400 shrink-0" />;
+      return <XCircleIcon size={13} className="text-danger shrink-0 mt-px" />;
     default:
-      return <CircleIcon size={14} className="text-default-400/40 shrink-0" />;
+      return <CircleIcon size={13} className="text-default-300 shrink-0 mt-px" />;
   }
 }
 
-// ── Single task row ──
+// ── Task row ──
 
 const TaskRow: FC<{ task: Task; isSubtask?: boolean; isCurrent?: boolean }> = ({ task, isSubtask, isCurrent }) => (
   <div
     className={cn(
-      "flex items-start gap-2 py-1 px-1 rounded text-xs",
-      isSubtask && "ml-4",
-      isCurrent && "bg-blue-500/5 border-l-2 border-blue-400 pl-2",
-      task.status === "completed" && "opacity-60",
+      "flex items-start gap-2 py-1.5 px-2 rounded-lg text-xs transition-colors",
+      isSubtask && "ml-5",
+      isCurrent && "bg-primary/5 dark:bg-primary/10",
+      task.status === "completed" && "opacity-50",
     )}
   >
     <StatusIcon status={task.status} />
     <span
       className={cn(
         "leading-tight",
-        task.status === "completed" && "line-through text-default-500",
-        task.status === "in_progress" && "text-foreground font-medium",
+        task.status === "completed" && "line-through text-default-400",
+        task.status === "in_progress" && "text-default-900 font-medium",
+        task.status === "pending" && "text-default-600",
       )}
     >
       {task.status === "in_progress" && task.activeLabel
@@ -74,46 +77,58 @@ const TaskRow: FC<{ task: Task; isSubtask?: boolean; isCurrent?: boolean }> = ({
   </div>
 );
 
-// ── Progress bar ──
+// ── Approval chip ──
 
-const ProgressBar: FC<{ completed: number; total: number }> = ({ completed, total }) => {
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  return (
-    <div className="flex items-center gap-2 text-[10px] text-default-500">
-      <div className="flex-1 h-1 bg-default-100/40 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span>{completed}/{total}</span>
-    </div>
-  );
-};
-
-// ── Approval badge ──
-
-const ApprovalBadge: FC<{ approved: boolean | null }> = ({ approved }) => {
+const ApprovalChip: FC<{ approved: boolean | null }> = ({ approved }) => {
   if (approved === null) {
-    return (
-      <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full font-medium">
-        Awaiting approval
-      </span>
-    );
+    return <Chip size="sm" variant="flat" color="warning" className="text-[10px] h-5">Awaiting approval</Chip>;
   }
   if (approved) {
-    return (
-      <span className="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full font-medium">
-        Approved
-      </span>
-    );
+    return <Chip size="sm" variant="flat" color="success" className="text-[10px] h-5">Approved</Chip>;
   }
+  return <Chip size="sm" variant="flat" color="danger" className="text-[10px] h-5">Rejected</Chip>;
+};
+
+// ── Progress ring ──
+
+const ProgressRing: FC<{ value: number; size?: number }> = ({ value, size = 28 }) => {
+  const stroke = 3;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (value / 100) * circ;
+
   return (
-    <span className="text-[10px] text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded-full font-medium">
-      Rejected
-    </span>
+    <svg width={size} height={size} className="shrink-0">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        className="text-default-200 dark:text-default-200/50"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className="text-success transition-[stroke-dashoffset] duration-500"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
   );
 };
+
+// ── Spring config ──
+
+const SPRING = { type: "spring" as const, stiffness: 400, damping: 35 };
+const FADE = { duration: 0.15 };
 
 // ── Main panel ──
 
@@ -152,6 +167,7 @@ export const TaskPanel: FC = () => {
 
   const completed = orderedTasks.filter((t) => t.status === "completed").length;
   const total = orderedTasks.length;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // Find current task
   const currentTask = orderedTasks.find((t) => t.status === "in_progress")
@@ -161,92 +177,127 @@ export const TaskPanel: FC = () => {
       ),
     );
 
-  // Collapsed state — just show a toggle button
-  if (!panelOpen) {
-    return (
-      <div className="border-l border-default-200 dark:border-default-200/50 flex flex-col items-center pt-2 px-1 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl">
-        <Button
-          variant="light"
-          size="sm"
-          onPress={() => setPanelOpen(true)}
-          isIconOnly
-          className="h-7 w-7 min-w-7"
-          aria-label="Show tasks"
-        >
-          <ListTodoIcon size={14} />
-        </Button>
-        <ModeBadge mode={mode} />
-        {total > 0 && (
-          <span className="text-[10px] text-default-500 mt-1">
-            {completed}/{total}
-          </span>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="w-72 border-l border-default-200 dark:border-default-200/50 flex flex-col h-full bg-default-100 dark:bg-default-50/40 backdrop-blur-xl shrink-0">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-default-200/50">
-        <div className="flex items-center gap-2 min-w-0">
-          <ListTodoIcon size={14} className="text-default-500 shrink-0" />
-          <span className="text-xs font-medium truncate">{plan?.title ?? "Workflow"}</span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <ModeBadge mode={mode} />
-          <Button
-            variant="light"
-            size="sm"
-            onPress={() => setPanelOpen(false)}
-            isIconOnly
-            className="h-6 w-6 min-w-6 p-0"
-          >
-            <ChevronRightIcon size={12} />
-          </Button>
-        </div>
-      </div>
+    <motion.div
+      className="shrink-0 h-full"
+      initial={false}
+      animate={{ width: panelOpen ? 256 : 44 }}
+      transition={SPRING}
+    >
+      <div className="h-full rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          {panelOpen ? (
+            <motion.div
+              key="expanded"
+              className="flex flex-col h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={FADE}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-default-200/50">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <ListTodoIcon size={14} className="text-default-400 shrink-0" />
+                  <span className="text-xs font-semibold truncate text-default-900">
+                    {plan?.title ?? "Workflow"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <ModeChip mode={mode} />
+                  <Button
+                    variant="light"
+                    size="sm"
+                    onPress={() => setPanelOpen(false)}
+                    isIconOnly
+                    className="h-6 w-6 min-w-6 p-0 text-default-400"
+                  >
+                    <ChevronRightIcon size={12} />
+                  </Button>
+                </div>
+              </div>
 
-      {/* Summary + approval */}
-      {plan && (
-        <div className="px-3 py-2 border-b border-default-200/50 space-y-1.5">
-          {plan.summary && (
-            <div className="text-[11px] text-default-500 leading-relaxed">
-              {plan.summary}
-            </div>
+              {/* Summary + approval + progress */}
+              <div className="px-3 py-2.5 space-y-2.5 border-b border-default-200/50">
+                {plan?.summary && (
+                  <p className="text-[11px] text-default-500 leading-relaxed">
+                    {plan.summary}
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  {plan && <ApprovalChip approved={plan.approved} />}
+                </div>
+                {total > 0 && (
+                  <div className="space-y-1">
+                    <Progress
+                      size="sm"
+                      value={pct}
+                      color="success"
+                      className="h-1.5"
+                      aria-label="Task progress"
+                    />
+                    <div className="flex justify-between text-[10px] text-default-400">
+                      <span>{completed} of {total} tasks</span>
+                      <span className="font-medium tabular-nums">{pct}%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Task list */}
+              <div className="flex-1 overflow-y-auto py-1.5 px-1.5">
+                {topLevelTasks.map((task) => (
+                  <div key={task.id}>
+                    <TaskRow task={task} isCurrent={task === currentTask} />
+                    {subtasksOf(task.id).map((sub) => (
+                      <TaskRow key={sub.id} task={sub} isSubtask isCurrent={sub === currentTask} />
+                    ))}
+                  </div>
+                ))}
+                {plan && orderedTasks.length === 0 && (
+                  <div className="text-[11px] text-default-500 text-center py-6">
+                    No tasks yet
+                  </div>
+                )}
+                {!plan && mode !== "general" && (
+                  <div className="text-[11px] text-default-500 text-center py-6">
+                    {mode === "discovery" ? "Gathering requirements…" : "No plan created yet"}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="collapsed"
+              className="flex flex-col items-center gap-1.5 py-2 px-1 h-full"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={FADE}
+            >
+              <Button
+                variant="flat"
+                size="sm"
+                onPress={() => setPanelOpen(true)}
+                isIconOnly
+                className="h-7 w-7 min-w-7 rounded-lg"
+                aria-label="Show tasks"
+              >
+                <ChevronLeftIcon size={14} />
+              </Button>
+
+              {total > 0 && <ProgressRing value={pct} />}
+
+              {/* Task status icons */}
+              <div className="flex flex-col items-center gap-1 flex-1 overflow-y-auto py-1">
+                {orderedTasks.map((task) => (
+                  <StatusIcon key={task.id} status={task.status} />
+                ))}
+              </div>
+            </motion.div>
           )}
-          <ApprovalBadge approved={plan.approved} />
-        </div>
-      )}
-
-      {/* Progress */}
-      {total > 0 && (
-        <div className="px-3 py-2">
-          <ProgressBar completed={completed} total={total} />
-        </div>
-      )}
-
-      {/* Task list */}
-      <div className="flex-1 overflow-y-auto px-2 py-1">
-        {topLevelTasks.map((task) => (
-          <div key={task.id}>
-            <TaskRow task={task} isCurrent={task === currentTask} />
-            {subtasksOf(task.id).map((sub) => (
-              <TaskRow key={sub.id} task={sub} isSubtask isCurrent={sub === currentTask} />
-            ))}
-          </div>
-        ))}
-        {plan && orderedTasks.length === 0 && (
-          <div className="text-[11px] text-default-500 text-center py-4">
-            No tasks yet
-          </div>
-        )}
-        {!plan && mode !== "general" && (
-          <div className="text-[11px] text-default-500 text-center py-4">
-            {mode === "discovery" ? "Gathering requirements..." : "No plan created yet"}
-          </div>
-        )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };

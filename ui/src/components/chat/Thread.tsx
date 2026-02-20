@@ -44,6 +44,7 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
+  Spinner,
 } from "@heroui/react";
 import { cn } from "@imdanibytes/nexus-ui";
 import { TimingWaterfall } from "@/components/TimingWaterfall.js";
@@ -92,6 +93,7 @@ export const Thread: FC = () => {
       <div
         ref={containerRef}
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+        style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)" }}
       >
         {isEmpty && <ThreadWelcome onSend={sendMessage} />}
 
@@ -124,26 +126,26 @@ export const Thread: FC = () => {
         )}
 
         <div ref={sentinelRef} className="h-px shrink-0" />
+      </div>
 
-        {/* Footer — sticky at bottom */}
-        <div className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
-          {!isAtBottom && (
-            <TooltipIconButton
-              tooltip="Scroll to bottom"
-              variant="outline"
-              className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 bg-default-100 dark:bg-default-50/60 backdrop-blur-xl border border-default-200 dark:border-default-200/50 hover:bg-default-200/60 dark:hover:bg-default-100/60"
-              onPress={scrollToBottom}
-            >
-              <ArrowDownIcon />
-            </TooltipIconButton>
-          )}
-          <SuggestionChips onSelect={sendMessage} isStreaming={isStreaming} />
-          <Composer
-            onSend={sendMessage}
-            onCancel={abort}
-            isStreaming={isStreaming}
-          />
-        </div>
+      {/* Footer — outside scroll area, stacked below */}
+      <div className="aui-thread-footer relative mx-auto flex w-full max-w-(--thread-max-width) shrink-0 flex-col gap-4 px-4 pt-3 pb-4 md:pb-6">
+        {!isAtBottom && (
+          <TooltipIconButton
+            tooltip="Scroll to bottom"
+            variant="outline"
+            className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center !size-9 !min-w-9 rounded-full bg-default-100 dark:bg-default-50/60 backdrop-blur-xl border border-default-200 dark:border-default-200/50 hover:bg-default-200/60 dark:hover:bg-default-100/60"
+            onPress={scrollToBottom}
+          >
+            <ArrowDownIcon className="size-4" />
+          </TooltipIconButton>
+        )}
+        <SuggestionChips onSelect={sendMessage} isStreaming={isStreaming} />
+        <Composer
+          onSend={sendMessage}
+          onCancel={abort}
+          isStreaming={isStreaming}
+        />
       </div>
     </div>
   );
@@ -210,17 +212,8 @@ const ThreadWelcome: FC<{ onSend: (text: string) => void }> = ({ onSend }) => {
 // ── Thinking Indicator ──
 
 const ThinkingIndicator: FC = () => (
-  <div className="flex items-center gap-1.5 px-2 py-1">
-    {[0, 1, 2].map((i) => (
-      <span
-        key={i}
-        className="inline-block size-2 rounded-full bg-default-500"
-        style={{
-          animation: "dot-pulse 1.4s ease-in-out infinite",
-          animationDelay: `${i * 0.2}s`,
-        }}
-      />
-    ))}
+  <div className="px-2 py-3">
+    <Spinner variant="dots" color="primary" size="md" />
   </div>
 );
 
@@ -274,12 +267,20 @@ const UserMessage: FC<{
   const isMcp = !!message.metadata?.mcpSource;
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const text = message.parts
     .filter((p) => p.type === "text")
     .map((p) => (p as { text: string }).text)
     .join("\n");
+
+  const copyText = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [text]);
 
   const startEditing = useCallback(() => {
     setEditText(text);
@@ -337,7 +338,7 @@ const UserMessage: FC<{
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="min-h-[2.5rem] w-full resize-none overflow-hidden rounded-2xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-100/40 backdrop-blur-sm px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="min-h-[2.5rem] w-full resize-none overflow-hidden rounded-2xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             rows={1}
           />
           <div className="flex justify-end gap-1.5">
@@ -359,7 +360,7 @@ const UserMessage: FC<{
         </div>
       ) : (
         <div className="relative col-start-2 min-w-0">
-          <div className="aui-user-message-content wrap-break-word rounded-2xl bg-default-100/60 backdrop-blur-sm px-4 py-2.5 text-foreground">
+          <div className="aui-user-message-content wrap-break-word rounded-2xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 px-4 py-2.5 text-foreground">
             {text}
           </div>
           {isMcp && (
@@ -370,8 +371,15 @@ const UserMessage: FC<{
 
           {/* Footer */}
           <div className="mt-1 flex h-7 items-center justify-end gap-2">
-            {!isMcp && !isStreaming && (
-              <div className="opacity-0 transition-opacity group-hover/user:opacity-100">
+            <div className="flex gap-0.5 opacity-0 transition-opacity group-hover/user:opacity-100">
+              <TooltipIconButton
+                tooltip="Copy"
+                className="size-6 text-default-400"
+                onPress={copyText}
+              >
+                {copied ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
+              </TooltipIconButton>
+              {!isMcp && (
                 <TooltipIconButton
                   tooltip="Edit"
                   className="size-6 text-default-400"
@@ -379,8 +387,8 @@ const UserMessage: FC<{
                 >
                   <PencilIcon className="size-3" />
                 </TooltipIconButton>
-              </div>
-            )}
+              )}
+            </div>
             <BranchPicker messageId={message.id} />
           </div>
         </div>
@@ -409,7 +417,7 @@ const AssistantMessage: FC<{
       className="aui-assistant-message-root group/assistant relative mx-auto w-full max-w-(--thread-max-width) animate-fade-in py-3"
       data-role="assistant"
     >
-      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed space-y-2.5">
         {isActiveStream && visibleParts.length === 0 && <ThinkingIndicator />}
 
         {message.parts.map((part, i) => {
@@ -453,7 +461,7 @@ const AssistantMessage: FC<{
             {message.metadata.profileName}
           </span>
         )}
-        {!isStreaming && (
+        {!isActiveStream && (
           <>
             <BranchPicker messageId={message.id} />
             <div className="opacity-0 transition-opacity group-hover/assistant:opacity-100">
