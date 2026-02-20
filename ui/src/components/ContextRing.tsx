@@ -1,7 +1,8 @@
 import type { FC } from "react";
 import { useThreadListStore } from "@/stores/threadListStore.js";
 import { useUsageStore } from "@/stores/usageStore.js";
-import { cn, Tooltip, TooltipContent, TooltipTrigger } from "@imdanibytes/nexus-ui";
+import { Tooltip } from "@heroui/react";
+import { cn } from "@imdanibytes/nexus-ui";
 
 const RADIUS = 9;
 const STROKE = 2;
@@ -37,7 +38,7 @@ export const ContextRing: FC = () => {
 
   const strokeColor =
     percent > 90
-      ? "stroke-destructive"
+      ? "stroke-danger"
       : percent > 70
         ? "stroke-amber-500"
         : "stroke-primary";
@@ -45,43 +46,38 @@ export const ContextRing: FC = () => {
   const tooltip = `Context: ${Math.round(percent)}% (${formatTokens(usage.contextTokens)} / ${formatTokens(usage.contextWindow)} tokens)`;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-1.5 px-1">
-          <svg
-            width={SIZE}
-            height={SIZE}
-            viewBox={`0 0 ${SIZE} ${SIZE}`}
-            className="shrink-0 -rotate-90"
-          >
-            <circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={RADIUS}
-              fill="none"
-              strokeWidth={STROKE}
-              className="stroke-muted-foreground/20"
-            />
-            <circle
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={RADIUS}
-              fill="none"
-              strokeWidth={STROKE}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={offset}
-              className={cn("transition-all duration-300", strokeColor)}
-            />
-          </svg>
-          <span className="text-[10px] tabular-nums text-muted-foreground">
-            {formatCost(usage.totalCost)}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">
-        {tooltip}
-      </TooltipContent>
+    <Tooltip content={tooltip} placement="top" className="text-xs">
+      <div className="flex items-center gap-1.5 px-1">
+        <svg
+          width={SIZE}
+          height={SIZE}
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          className="shrink-0 -rotate-90"
+        >
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={RADIUS}
+            fill="none"
+            strokeWidth={STROKE}
+            className="stroke-default-300/20"
+          />
+          <circle
+            cx={SIZE / 2}
+            cy={SIZE / 2}
+            r={RADIUS}
+            fill="none"
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={offset}
+            className={cn("transition-all duration-300", strokeColor)}
+          />
+        </svg>
+        <span className="text-[10px] tabular-nums text-default-500">
+          {formatCost(usage.totalCost)}
+        </span>
+      </div>
     </Tooltip>
   );
 };

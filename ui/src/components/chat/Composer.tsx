@@ -6,10 +6,10 @@ import {
   type KeyboardEvent,
 } from "react";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
+import { Button } from "@heroui/react";
 import { AgentSwitcher } from "@/components/AgentSwitcher.js";
 import { ContextRing } from "@/components/ContextRing.js";
 import { TooltipIconButton } from "@/components/chat/tooltip-icon-button.js";
-import { Button } from "@imdanibytes/nexus-ui";
 
 interface ComposerProps {
   onSend: (text: string) => void;
@@ -30,7 +30,6 @@ export const Composer: FC<ComposerProps> = ({
     if (!trimmed || isStreaming) return;
     onSend(trimmed);
     setText("");
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -54,7 +53,7 @@ export const Composer: FC<ComposerProps> = ({
   }, []);
 
   return (
-    <div className="aui-composer-root relative flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20">
+    <div className="aui-composer-root relative flex w-full flex-col rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 backdrop-blur-xl px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-primary/40 has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-primary/20">
       <textarea
         ref={textareaRef}
         value={text}
@@ -62,7 +61,7 @@ export const Composer: FC<ComposerProps> = ({
         onKeyDown={handleKeyDown}
         onInput={handleInput}
         placeholder="Send a message..."
-        className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+        className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm text-foreground outline-none placeholder:text-default-400 focus-visible:ring-0"
         rows={1}
         autoFocus
         aria-label="Message input"
@@ -76,24 +75,23 @@ export const Composer: FC<ComposerProps> = ({
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
-            size="icon"
-            className="aui-composer-send size-8 rounded-full"
+            className="aui-composer-send size-8 min-w-8 rounded-full"
             aria-label="Send message"
-            onClick={handleSend}
-            disabled={!text.trim()}
+            onPress={handleSend}
+            isDisabled={!text.trim()}
           >
             <ArrowUpIcon className="aui-composer-send-icon size-4" />
           </TooltipIconButton>
         ) : (
           <Button
-            type="button"
-            variant="default"
-            size="icon"
-            className="aui-composer-cancel size-8 rounded-full"
+            color="primary"
+            variant="solid"
+            isIconOnly
+            size="sm"
+            className="aui-composer-cancel size-8 min-w-8 rounded-full"
             aria-label="Stop generating"
-            onClick={onCancel}
+            onPress={onCancel}
           >
             <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
           </Button>

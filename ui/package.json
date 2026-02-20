@@ -7,14 +7,15 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "@heroui/react": "^2.8.9",
+    "@heroui/theme": "^2.4.26",
     "@imdanibytes/nexus-sdk": "^0.10.1",
     "@imdanibytes/nexus-ui": "^0.5.0",
     "@streamdown/code": "^1.0.2",
     "@streamdown/math": "^1.0.2",
-    "cmdk": "^1.1.1",
+    "framer-motion": "^12.34.2",
     "katex": "^0.16.28",
     "lucide-react": "^0.468.0",
-    "radix-ui": "^1.4.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remark-gfm": "^4.0.1",

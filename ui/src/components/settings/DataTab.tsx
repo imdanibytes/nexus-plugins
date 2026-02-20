@@ -8,17 +8,14 @@ import {
 import { useThreadListStore } from "@/stores/threadListStore.js";
 import {
   Button,
-  Separator,
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@imdanibytes/nexus-ui";
+  Divider,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/react";
 
 export function DataTab() {
   const [count, setCount] = useState<number | null>(null);
@@ -27,6 +24,7 @@ export function DataTab() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const loadThreads = useThreadListStore((s) => s.loadThreads);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   useEffect(() => {
     fetchConversations().then((c) => setCount(c.length));
@@ -46,12 +44,13 @@ export function DataTab() {
     }
   }
 
-  async function handleDeleteAll() {
+  async function handleDeleteAll(onClose: () => void) {
     setDeleting(true);
     try {
       await deleteAllConversations();
       setCount(0);
       await loadThreads();
+      onClose();
     } finally {
       setDeleting(false);
     }
@@ -61,21 +60,20 @@ export function DataTab() {
 
   return (
     <div className="space-y-6">
-      {/* Export */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Download size={14} strokeWidth={1.5} className="text-muted-foreground" />
+          <Download size={14} strokeWidth={1.5} className="text-default-500" />
           <h3 className="text-sm font-medium">Export conversations</h3>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-default-500">
           Save all conversations as a JSON file to your Downloads folder.
         </p>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            variant="bordered"
             size="sm"
-            onClick={handleExport}
-            disabled={exporting || !hasConversations}
+            onPress={handleExport}
+            isDisabled={exporting || !hasConversations}
           >
             {exporting && <Loader2 size={14} className="animate-spin mr-1.5" />}
             Export{count !== null ? ` (${count})` : ""}
@@ -87,49 +85,54 @@ export function DataTab() {
             </span>
           )}
           {exportError && (
-            <span className="text-xs text-destructive">{exportError}</span>
+            <span className="text-xs text-danger">{exportError}</span>
           )}
         </div>
       </div>
 
-      <Separator />
+      <Divider />
 
-      {/* Delete all */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Trash2 size={14} strokeWidth={1.5} className="text-muted-foreground" />
+          <Trash2 size={14} strokeWidth={1.5} className="text-default-500" />
           <h3 className="text-sm font-medium">Delete all conversations</h3>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-default-500">
           Permanently remove all conversations. This cannot be undone.
         </p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={!hasConversations || deleting}
-            >
-              {deleting && <Loader2 size={14} className="animate-spin mr-1.5" />}
-              Delete all{count !== null ? ` (${count})` : ""}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete all conversations?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete {count} conversation{count !== 1 ? "s" : ""}.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteAll}>
-                Delete all
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <Button
+          color="danger"
+          size="sm"
+          isDisabled={!hasConversations || deleting}
+          onPress={onOpen}
+        >
+          {deleting && <Loader2 size={14} className="animate-spin mr-1.5" />}
+          Delete all{count !== null ? ` (${count})` : ""}
+        </Button>
+
+        <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader>Delete all conversations?</ModalHeader>
+                <ModalBody>
+                  <p className="text-sm text-default-500">
+                    This will permanently delete {count} conversation{count !== 1 ? "s" : ""}.
+                    This action cannot be undone.
+                  </p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button variant="light" onPress={onClose}>
+                    Cancel
+                  </Button>
+                  <Button color="danger" onPress={() => handleDeleteAll(onClose)}>
+                    Delete all
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
       </div>
     </div>
   );

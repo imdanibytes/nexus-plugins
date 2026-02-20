@@ -10,14 +10,10 @@ import { useChatStore } from "@/stores/chatStore.js";
 import {
   Button,
   Input,
-  Label,
-  Separator,
+  Divider,
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@imdanibytes/nexus-ui";
+} from "@heroui/react";
 
 type FilterMode = "all" | "allow" | "deny";
 
@@ -102,7 +98,7 @@ export function ToolsTab() {
   if (!settings) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 size={18} className="animate-spin text-muted-foreground" />
+        <Loader2 size={18} className="animate-spin text-default-500" />
       </div>
     );
   }
@@ -113,27 +109,26 @@ export function ToolsTab() {
 
   return (
     <div className="space-y-6">
-      {/* UI Visibility */}
       <section className="space-y-3">
         <div>
           <h3 className="text-sm font-medium">UI Visibility</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-default-500 mt-0.5">
             Tool calls matching these patterns won't appear in the chat.
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Hidden Tool Patterns</Label>
+          <label className="text-xs font-medium">Hidden Tool Patterns</label>
           <div className="space-y-1">
             {patterns.map((p, i) => (
               <div
                 key={i}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary/50 text-xs font-mono"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-default-100/30 text-xs font-mono"
               >
                 <span className="flex-1 truncate">{p}</span>
                 <button
                   onClick={() => removePattern(i)}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  className="text-default-500 hover:text-danger transition-colors"
                 >
                   <X size={12} />
                 </button>
@@ -145,7 +140,8 @@ export function ToolsTab() {
               value={newPattern}
               onChange={(e) => setNewPattern(e.target.value)}
               placeholder="_nexus_*"
-              className="font-mono text-xs"
+              classNames={{ input: "font-mono text-xs" }}
+              size="sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -154,11 +150,11 @@ export function ToolsTab() {
               }}
             />
             <Button
-              type="button"
-              variant="outline"
+              variant="bordered"
               size="sm"
-              onClick={addPattern}
-              disabled={!newPattern.trim()}
+              onPress={addPattern}
+              isDisabled={!newPattern.trim()}
+              isIconOnly
               className="flex-shrink-0"
             >
               <Plus size={13} />
@@ -167,26 +163,28 @@ export function ToolsTab() {
         </div>
       </section>
 
-      <Separator />
+      <Divider />
 
-      {/* Global Tool Filter */}
       <section className="space-y-3">
         <div>
           <h3 className="text-sm font-medium">Global Tool Filter</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-default-500 mt-0.5">
             Control which tools are available to all agents.
           </p>
         </div>
 
-        <Select value={filterMode} onValueChange={(v) => handleFilterModeChange(v as FilterMode)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Allow all tools</SelectItem>
-            <SelectItem value="allow">Allow list</SelectItem>
-            <SelectItem value="deny">Deny list</SelectItem>
-          </SelectContent>
+        <Select
+          selectedKeys={[filterMode]}
+          onSelectionChange={(keys) => {
+            const key = Array.from(keys)[0] as FilterMode;
+            if (key) handleFilterModeChange(key);
+          }}
+          size="sm"
+          aria-label="Filter mode"
+        >
+          <SelectItem key="all">Allow all tools</SelectItem>
+          <SelectItem key="allow">Allow list</SelectItem>
+          <SelectItem key="deny">Deny list</SelectItem>
         </Select>
 
         {filterMode !== "all" && (
@@ -195,16 +193,17 @@ export function ToolsTab() {
               value={toolSearch}
               onChange={(e) => setToolSearch(e.target.value)}
               placeholder="Search tools..."
-              className="text-xs"
+              classNames={{ input: "text-xs" }}
+              size="sm"
             />
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-default-200/50">
               {filteredTools.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-3">No tools found.</p>
+                <p className="text-xs text-default-500 p-3">No tools found.</p>
               ) : (
                 filteredTools.map((tool) => (
                   <label
                     key={tool.name}
-                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent/30 cursor-pointer text-xs"
+                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-default-100/30 cursor-pointer text-xs"
                   >
                     <input
                       type="checkbox"
@@ -213,12 +212,12 @@ export function ToolsTab() {
                       className="accent-primary"
                     />
                     <span className="font-mono truncate flex-1">{tool.name}</span>
-                    <span className="text-muted-foreground/60 text-[10px]">{tool.source}</span>
+                    <span className="text-default-400 text-[10px]">{tool.source}</span>
                   </label>
                 ))
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-default-500">
               {filterMode === "allow"
                 ? "Only checked tools will be available to any agent."
                 : "Checked tools will be blocked for all agents."}
@@ -227,7 +226,7 @@ export function ToolsTab() {
         )}
 
         {saving && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-default-500">
             <Loader2 size={12} className="animate-spin" />
             Saving...
           </div>

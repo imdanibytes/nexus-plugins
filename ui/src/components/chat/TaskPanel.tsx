@@ -7,7 +7,8 @@ import {
   ChevronRightIcon,
   ListTodoIcon,
 } from "lucide-react";
-import { cn, Button } from "@imdanibytes/nexus-ui";
+import { Button } from "@heroui/react";
+import { cn } from "@imdanibytes/nexus-ui";
 import { useTaskStore } from "@/stores/taskStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
 import { fetchTaskState } from "@/api/client.js";
@@ -16,7 +17,7 @@ import type { Task, TaskStatus, AgentMode } from "@/api/client.js";
 // ── Mode badge ──
 
 const MODE_CONFIG: Record<AgentMode, { label: string; color: string }> = {
-  general: { label: "General", color: "text-muted-foreground bg-muted" },
+  general: { label: "General", color: "text-default-500 bg-default-100/40" },
   discovery: { label: "Discovery", color: "text-amber-400 bg-amber-400/10" },
   planning: { label: "Planning", color: "text-blue-400 bg-blue-400/10" },
   execution: { label: "Executing", color: "text-emerald-400 bg-emerald-400/10" },
@@ -43,7 +44,7 @@ function StatusIcon({ status }: { status: TaskStatus }) {
     case "failed":
       return <XCircleIcon size={14} className="text-red-400 shrink-0" />;
     default:
-      return <CircleIcon size={14} className="text-muted-foreground/40 shrink-0" />;
+      return <CircleIcon size={14} className="text-default-400/40 shrink-0" />;
   }
 }
 
@@ -62,7 +63,7 @@ const TaskRow: FC<{ task: Task; isSubtask?: boolean; isCurrent?: boolean }> = ({
     <span
       className={cn(
         "leading-tight",
-        task.status === "completed" && "line-through text-muted-foreground",
+        task.status === "completed" && "line-through text-default-500",
         task.status === "in_progress" && "text-foreground font-medium",
       )}
     >
@@ -78,8 +79,8 @@ const TaskRow: FC<{ task: Task; isSubtask?: boolean; isCurrent?: boolean }> = ({
 const ProgressBar: FC<{ completed: number; total: number }> = ({ completed, total }) => {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   return (
-    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-      <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+    <div className="flex items-center gap-2 text-[10px] text-default-500">
+      <div className="flex-1 h-1 bg-default-100/40 rounded-full overflow-hidden">
         <div
           className="h-full bg-emerald-500 rounded-full transition-all duration-500"
           style={{ width: `${pct}%` }}
@@ -163,19 +164,20 @@ export const TaskPanel: FC = () => {
   // Collapsed state — just show a toggle button
   if (!panelOpen) {
     return (
-      <div className="border-l border-border flex flex-col items-center pt-2 px-1">
+      <div className="border-l border-default-200 dark:border-default-200/50 flex flex-col items-center pt-2 px-1 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl">
         <Button
-          variant="ghost"
+          variant="light"
           size="sm"
-          onClick={() => setPanelOpen(true)}
-          className="h-7 w-7 p-0"
-          title="Show tasks"
+          onPress={() => setPanelOpen(true)}
+          isIconOnly
+          className="h-7 w-7 min-w-7"
+          aria-label="Show tasks"
         >
           <ListTodoIcon size={14} />
         </Button>
         <ModeBadge mode={mode} />
         {total > 0 && (
-          <span className="text-[10px] text-muted-foreground mt-1">
+          <span className="text-[10px] text-default-500 mt-1">
             {completed}/{total}
           </span>
         )}
@@ -184,20 +186,21 @@ export const TaskPanel: FC = () => {
   }
 
   return (
-    <div className="w-72 border-l border-border flex flex-col h-full bg-background shrink-0">
+    <div className="w-72 border-l border-default-200 dark:border-default-200/50 flex flex-col h-full bg-default-100 dark:bg-default-50/40 backdrop-blur-xl shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-default-200/50">
         <div className="flex items-center gap-2 min-w-0">
-          <ListTodoIcon size={14} className="text-muted-foreground shrink-0" />
+          <ListTodoIcon size={14} className="text-default-500 shrink-0" />
           <span className="text-xs font-medium truncate">{plan?.title ?? "Workflow"}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <ModeBadge mode={mode} />
           <Button
-            variant="ghost"
+            variant="light"
             size="sm"
-            onClick={() => setPanelOpen(false)}
-            className="h-6 w-6 p-0"
+            onPress={() => setPanelOpen(false)}
+            isIconOnly
+            className="h-6 w-6 min-w-6 p-0"
           >
             <ChevronRightIcon size={12} />
           </Button>
@@ -206,9 +209,9 @@ export const TaskPanel: FC = () => {
 
       {/* Summary + approval */}
       {plan && (
-        <div className="px-3 py-2 border-b border-border space-y-1.5">
+        <div className="px-3 py-2 border-b border-default-200/50 space-y-1.5">
           {plan.summary && (
-            <div className="text-[11px] text-muted-foreground leading-relaxed">
+            <div className="text-[11px] text-default-500 leading-relaxed">
               {plan.summary}
             </div>
           )}
@@ -234,12 +237,12 @@ export const TaskPanel: FC = () => {
           </div>
         ))}
         {plan && orderedTasks.length === 0 && (
-          <div className="text-[11px] text-muted-foreground text-center py-4">
+          <div className="text-[11px] text-default-500 text-center py-4">
             No tasks yet
           </div>
         )}
         {!plan && mode !== "general" && (
-          <div className="text-[11px] text-muted-foreground text-center py-4">
+          <div className="text-[11px] text-default-500 text-center py-4">
             {mode === "discovery" ? "Gathering requirements..." : "No plan created yet"}
           </div>
         )}

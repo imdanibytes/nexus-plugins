@@ -10,7 +10,7 @@ import {
   type EndpointStatus,
 } from "@/api/client.js";
 import { ProviderEditor } from "./ProviderEditor.js";
-import { Button, Badge } from "@imdanibytes/nexus-ui";
+import { Button, Chip } from "@heroui/react";
 
 const TYPE_LABELS: Record<string, string> = {
   ollama: "Ollama",
@@ -28,7 +28,6 @@ export function ProvidersTab() {
   const refresh = useCallback(async () => {
     const list = await fetchProviders();
     setProviders(list);
-    // Clear cached probe results so they re-run with fresh data
     setProbeResults({});
   }, [setProviders]);
 
@@ -36,7 +35,6 @@ export function ProvidersTab() {
     refresh();
   }, [refresh]);
 
-  // Probe all providers on load
   useEffect(() => {
     for (const p of providers) {
       if (!probeResults[p.id]) {
@@ -74,21 +72,21 @@ export function ProvidersTab() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">Providers</h3>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-default-500 mt-0.5">
             LLM service connections.
           </p>
         </div>
-        <Button size="sm" onClick={() => setCreating(true)} className="gap-1.5">
+        <Button size="sm" color="primary" onPress={() => setCreating(true)} className="gap-1.5">
           <Plus size={13} />
           New
         </Button>
       </div>
 
       {providers.length === 0 ? (
-        <div className="text-center py-12 rounded-xl border border-dashed border-border">
-          <Server size={28} className="mx-auto mb-3 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">No providers yet</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-1">
+        <div className="text-center py-12 rounded-xl border border-dashed border-default-200/50">
+          <Server size={28} className="mx-auto mb-3 text-default-400" />
+          <p className="text-sm text-default-500">No providers yet</p>
+          <p className="text-[11px] text-default-400 mt-1">
             Add a provider to connect to an LLM service.
           </p>
         </div>
@@ -99,7 +97,7 @@ export function ProvidersTab() {
             return (
               <div
                 key={p.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:bg-accent/50 transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:bg-default-100/30 transition-colors"
               >
                 <CircleDot
                   size={10}
@@ -108,29 +106,31 @@ export function ProvidersTab() {
                     probe?.reachable
                       ? "text-green-400"
                       : probe && !probe.reachable
-                        ? "text-destructive"
-                        : "text-muted-foreground/40"
+                        ? "text-danger"
+                        : "text-default-400/40"
                   }
                 />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{p.name}</div>
                   {p.endpoint && (
-                    <div className="text-[11px] text-muted-foreground truncate font-mono">
+                    <div className="text-[11px] text-default-500 truncate font-mono">
                       {p.endpoint}
                     </div>
                   )}
                 </div>
-                <Badge
-                  variant="secondary"
+                <Chip
+                  variant="flat"
+                  size="sm"
                   className="text-[10px] flex-shrink-0"
                 >
                   {TYPE_LABELS[p.type] || p.type}
-                </Badge>
+                </Chip>
                 <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => setEditing(p)}
-                  className="h-7 w-7 flex-shrink-0 text-muted-foreground/50 hover:text-foreground"
+                  isIconOnly
+                  variant="light"
+                  size="sm"
+                  onPress={() => setEditing(p)}
+                  className="h-7 w-7 min-w-7 flex-shrink-0 text-default-400 hover:text-default-900"
                 >
                   <Pencil size={12} />
                 </Button>

@@ -1,7 +1,11 @@
+@import "tailwindcss";
 @import "@imdanibytes/nexus-ui/styles";
+
+@plugin "../hero.ts";
 
 @source "../node_modules/streamdown/dist/*.js";
 @source "../../node_modules/@imdanibytes/nexus-ui/dist";
+@source "../../node_modules/@heroui/theme/dist/**/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -11,29 +15,32 @@
   --animate-dot-pulse: dot-pulse 1.4s ease-in-out infinite;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-}
-
 body {
   margin: 0;
   padding: 0;
-  background: var(--color-nx-base);
-  color: var(--color-nx-text);
+  background: transparent;
+  color: hsl(var(--heroui-foreground));
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   overflow: hidden;
-  height: 100vh;
+  height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  height: 100%;
+  /* Dev-only: simulates host app background so the glass panel is visible */
+  background: #fff;
+}
+html:is(.dark) {
+  background: linear-gradient(135deg, #0f0f14 0%, #0a0a10 50%, #10101a 100%);
+}
 #root {
-  height: 100vh;
+  height: 100%;
+  padding: 8px;
 }
 
-/* Scrollbar */
+/* Scrollbar — glass compatible */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -41,14 +48,15 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-nx-wash, #323744);
+  background: hsl(var(--heroui-default-300) / 0.3);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: hsl(var(--heroui-default-400) / 0.5);
 }
 
-/* Animations */
+/* ── Animations ── */
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -62,9 +70,23 @@ body {
   40% { opacity: 1; transform: scale(1); }
 }
 
+/* Gradient blob drift — GPU-safe translate3d only */
+@keyframes drift-1 {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(40px, 30px, 0); }
+}
+@keyframes drift-2 {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-30px, 40px, 0); }
+}
+@keyframes drift-4 {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(25px, -35px, 0); }
+}
+
 /* Footnote scroll flash */
 @keyframes md-flash {
-  0% { background-color: color-mix(in srgb, var(--color-nx-accent) 25%, transparent); }
+  0% { background-color: hsl(var(--heroui-primary) / 0.2); }
   100% { background-color: transparent; }
 }
 .aui-md-flash {
@@ -72,32 +94,34 @@ body {
   border-radius: 4px;
 }
 
-/* Streamdown code blocks — override built-in styles to match design */
+/* ── Streamdown code blocks — glass treatment ── */
+
 .aui-md [data-streamdown="code-block"] {
   margin-top: 0.625rem;
   margin-bottom: 0.625rem;
   border-radius: 0.5rem;
-  border-color: color-mix(in srgb, var(--color-border) 50%, transparent);
+  border-color: hsl(var(--heroui-default-200) / 0.5);
 }
 .aui-md [data-streamdown="code-block-header"] {
-  background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  background: hsl(var(--heroui-default-100) / 0.4);
   padding: 0.375rem 0.75rem;
 }
 .aui-md [data-streamdown="code-block-body"] {
-  background: color-mix(in srgb, var(--color-muted) 30%, transparent);
+  background: hsl(var(--heroui-default-100) / 0.2);
   padding: 0.75rem;
   font-size: 0.75rem;
   line-height: 1.625;
 }
 .aui-md [data-streamdown="inline-code"] {
-  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-  background: color-mix(in srgb, var(--color-muted) 50%, transparent);
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
+  background: hsl(var(--heroui-default-100) / 0.4);
   padding: 0.125rem 0.375rem;
   border-radius: 0.375rem;
   font-size: 0.85em;
 }
 
-/* Markdown content */
+/* ── Markdown content — glass compatible ── */
+
 .markdown-content {
   line-height: 1.65;
 }
@@ -127,19 +151,19 @@ body {
   margin: 0.25em 0;
 }
 .markdown-content code {
-  background: var(--color-nx-raised);
+  background: hsl(var(--heroui-default-100) / 0.5);
   padding: 0.15em 0.4em;
   border-radius: 5px;
   font-size: 0.875em;
   font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
 }
 .markdown-content pre {
-  background: var(--color-nx-raised);
+  background: hsl(var(--heroui-default-100) / 0.3);
   padding: 1em;
   border-radius: 8px;
   overflow-x: auto;
   margin: 0.75em 0;
-  border: 1px solid var(--color-nx-border);
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
 }
 .markdown-content pre code {
   background: none;
@@ -148,7 +172,7 @@ body {
   font-size: 0.8125em;
 }
 .markdown-content a {
-  color: var(--color-nx-accent);
+  color: hsl(var(--heroui-primary));
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -156,21 +180,21 @@ body {
   opacity: 0.8;
 }
 .markdown-content blockquote {
-  border-left: 3px solid var(--color-nx-border);
+  border-left: 3px solid hsl(var(--heroui-default-200) / 0.5);
   padding-left: 1em;
   margin: 0.75em 0;
-  color: var(--color-nx-text-muted);
+  color: hsl(var(--heroui-default-500));
 }
 .markdown-content hr {
   border: none;
-  border-top: 1px solid var(--color-nx-border);
+  border-top: 1px solid hsl(var(--heroui-default-200) / 0.5);
   margin: 1.5em 0;
 }
 .markdown-content .table-wrap {
   overflow-x: auto;
   margin: 0.75em 0;
   border-radius: 8px;
-  border: 1px solid var(--color-nx-border);
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
 }
 .markdown-content table {
   border-collapse: collapse;
@@ -178,16 +202,65 @@ body {
 }
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid var(--color-nx-border);
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
   padding: 0.5em 0.75em;
   text-align: left;
   font-size: 0.875em;
 }
 .markdown-content th {
-  background: var(--color-nx-raised);
+  background: hsl(var(--heroui-default-100) / 0.4);
   font-weight: 600;
 }
 .markdown-content img {
   max-width: 100%;
   border-radius: 8px;
+}
+
+/* ── Collapsible animation for ToolFallback ── */
+
+@keyframes collapsible-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+/* ── Shimmer animation for tool loading ── */
+
+@keyframes shimmer {
+  0% { mask-position: 200% center; }
+  100% { mask-position: -50% center; }
+}
+.shimmer {
+  mask-image: linear-gradient(to right, transparent 0%, black 50%, transparent 100%);
+  mask-size: 50% 100%;
+  mask-repeat: no-repeat;
+  animation: shimmer 2s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--heroui-primary)) 50%, transparent 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/*
+ * ── HeroUI semantic token bridge ──
+ *
+ * The HeroUI Tailwind v4 plugin registers `foreground` and `background` as
+ * static @theme colors (using the defaultTheme's values). This means
+ * `text-foreground` and `bg-background` don't react to .light/.dark class
+ * switches. The `default-*` scale and `primary` DO switch correctly.
+ *
+ * These unlayered overrides beat the plugin's @layer utilities rules and
+ * use the dynamic --heroui-* CSS custom properties that DO react to theme.
+ */
+.text-foreground {
+  color: hsl(var(--heroui-foreground));
+}
+.bg-background {
+  background-color: hsl(var(--heroui-background));
+}
+.bg-foreground {
+  background-color: hsl(var(--heroui-foreground));
 }

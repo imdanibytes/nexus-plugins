@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { ArrowLeft, Bot, Database, Server, Wrench } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Bot, Database, Server, Wrench, XIcon } from "lucide-react";
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { useChatStore } from "@/stores/chatStore.js";
 import { AgentsTab } from "./AgentsTab.js";
 import { ProvidersTab } from "./ProvidersTab.js";
 import { ToolsTab } from "./ToolsTab.js";
 import { DataTab } from "./DataTab.js";
-import { Button } from "@imdanibytes/nexus-ui";
+import { cn } from "@imdanibytes/nexus-ui";
 
 type SettingsTab = "agents" | "providers" | "tools" | "data";
 
@@ -20,54 +21,106 @@ export function SettingsPage() {
   const { setSettingsOpen } = useChatStore();
   const [active, setActive] = useState<SettingsTab>("agents");
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSettingsOpen(false);
+    },
+    [setSettingsOpen],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 min-h-0 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setSettingsOpen(false)}
-          className="h-7 w-7"
+    <LazyMotion features={domAnimation}>
+      <AnimatePresence>
+        <m.div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
         >
-          <ArrowLeft size={15} />
-        </Button>
-        <h2 className="text-sm font-semibold">Settings</h2>
-      </div>
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/30 dark:bg-black/40 backdrop-blur-sm"
+            onClick={() => setSettingsOpen(false)}
+          />
 
-      {/* Tab strip */}
-      <div className="flex gap-0.5 px-4 pt-1.5 border-b border-border flex-shrink-0">
-        {TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = active === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActive(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium rounded-t-lg transition-colors whitespace-nowrap border-b-2 ${
-                isActive
-                  ? "border-primary text-foreground bg-card/50"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/30"
-              }`}
-            >
-              <Icon size={14} strokeWidth={1.5} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+          {/* Modal */}
+          <m.div
+            className="relative z-10 flex h-[85vh] w-[min(90vw,56rem)] gap-2 p-2"
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {/* Nav card */}
+            <nav className="w-[200px] shrink-0 rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 p-4 flex flex-col gap-1">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-foreground">Settings</h2>
+                <button
+                  onClick={() => setSettingsOpen(false)}
+                  className="p-1 rounded hover:bg-default-200/40 transition-colors text-default-400 hover:text-default-900"
+                >
+                  <XIcon className="size-4" />
+                </button>
+              </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="px-5 py-5">
-          <div className="max-w-lg">
-            {active === "agents" && <AgentsTab />}
-            {active === "providers" && <ProvidersTab />}
-            {active === "tools" && <ToolsTab />}
-            {active === "data" && <DataTab />}
-          </div>
-        </div>
-      </div>
-    </div>
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = active === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActive(tab.id)}
+                    className={cn(
+                      "relative w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-left transition-colors duration-200",
+                      isActive
+                        ? "text-foreground font-medium"
+                        : "text-default-500 hover:text-default-900 hover:bg-default-200/40",
+                    )}
+                  >
+                    {isActive && (
+                      <m.div
+                        layoutId="settings-nav"
+                        className="absolute inset-0 rounded-xl bg-default-100"
+                        transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                      />
+                    )}
+                    <span className="relative flex items-center gap-3">
+                      <Icon size={15} strokeWidth={1.5} />
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Content card */}
+            <div className="flex-1 min-h-0 rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 overflow-y-auto p-8">
+              <AnimatePresence mode="wait">
+                <m.div
+                  key={active}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <div className="max-w-lg">
+                    {active === "agents" && <AgentsTab />}
+                    {active === "providers" && <ProvidersTab />}
+                    {active === "tools" && <ToolsTab />}
+                    {active === "data" && <DataTab />}
+                  </div>
+                </m.div>
+              </AnimatePresence>
+            </div>
+          </m.div>
+        </m.div>
+      </AnimatePresence>
+    </LazyMotion>
   );
 }

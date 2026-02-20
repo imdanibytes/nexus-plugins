@@ -17,14 +17,10 @@ import {
   Button,
   Input,
   Textarea,
-  Label,
-  Separator,
+  Divider,
   Select,
-  SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@imdanibytes/nexus-ui";
+} from "@heroui/react";
 
 interface Props {
   agent?: Agent;
@@ -58,7 +54,6 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
   const [toolSearch, setToolSearch] = useState("");
   const { availableTools } = useChatStore();
 
-  // Discover models when provider changes
   useEffect(() => {
     if (!providerId) return;
     probeProviderApi(providerId)
@@ -127,67 +122,65 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="flex items-center gap-2">
-        <Button type="button" variant="ghost" size="icon" onClick={onCancel} className="h-7 w-7">
+        <Button type="button" variant="light" isIconOnly size="sm" onPress={onCancel} className="h-7 w-7 min-w-7">
           <ArrowLeft size={14} />
         </Button>
         <div>
           <h3 className="text-sm font-medium">
             {agent ? "Edit Agent" : "New Agent"}
           </h3>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-default-500">
             {agent ? "Update this agent's configuration." : "Create a new agent configuration."}
           </p>
         </div>
       </div>
 
-      <Separator />
+      <Divider />
 
-      {/* Name */}
-      <div className="space-y-1.5">
-        <Label htmlFor="agent-name" className="text-xs">Name</Label>
-        <Input
-          id="agent-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Research Assistant"
-          required
-        />
-      </div>
+      <Input
+        label="Name"
+        labelPlacement="outside"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Research Assistant"
+        isRequired
+        size="sm"
+      />
 
-      {/* Provider */}
       <div className="space-y-1.5">
-        <Label className="text-xs">Provider</Label>
+        <label className="text-xs font-medium">Provider</label>
         {providers.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-default-500">
             No providers configured. Add one in the Providers tab first.
           </p>
         ) : (
-          <Select value={providerId} onValueChange={setProviderId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a provider" />
-            </SelectTrigger>
-            <SelectContent>
-              {providers.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
+          <Select
+            selectedKeys={[providerId]}
+            onSelectionChange={(keys) => {
+              const key = Array.from(keys)[0] as string;
+              if (key) setProviderId(key);
+            }}
+            size="sm"
+            aria-label="Provider"
+          >
+            {providers.map((p) => (
+              <SelectItem key={p.id}>{p.name}</SelectItem>
+            ))}
           </Select>
         )}
       </div>
 
-      {/* Model */}
       <div className="space-y-1.5">
-        <Label htmlFor="agent-model" className="text-xs">Model</Label>
         <Input
-          id="agent-model"
+          label="Model"
+          labelPlacement="outside"
           value={model}
           onChange={(e) => setModel(e.target.value)}
           placeholder="qwen3:30b"
           list={discoveredModels.length > 0 ? "agent-model-options" : undefined}
-          required
-          className="font-mono text-xs"
+          isRequired
+          classNames={{ input: "font-mono text-xs" }}
+          size="sm"
         />
         {discoveredModels.length > 0 && (
           <datalist id="agent-model-options">
@@ -196,55 +189,54 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
             ))}
           </datalist>
         )}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[11px] text-default-500">
           {discoveredModels.length > 0
             ? `${discoveredModels.length} model${discoveredModels.length !== 1 ? "s" : ""} discovered.`
             : "Enter a model ID."}
         </p>
       </div>
 
-      {/* System Prompt */}
-      <div className="space-y-1.5">
-        <Label htmlFor="agent-prompt" className="text-xs">System Prompt</Label>
-        <Textarea
-          id="agent-prompt"
-          value={systemPrompt}
-          onChange={(e) => setSystemPrompt(e.target.value)}
-          placeholder="You are a helpful assistant..."
-          rows={4}
-          className="resize-none text-xs"
-        />
-      </div>
+      <Textarea
+        label="System Prompt"
+        labelPlacement="outside"
+        value={systemPrompt}
+        onChange={(e) => setSystemPrompt(e.target.value)}
+        placeholder="You are a helpful assistant..."
+        minRows={4}
+        classNames={{ input: "text-xs" }}
+        size="sm"
+      />
 
-      <Separator />
+      <Divider />
 
-      {/* Model Parameters */}
       <div className="space-y-4">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="text-xs font-medium text-default-500 uppercase tracking-wide">
           Model Parameters
         </h4>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">Sampling Method</Label>
-          <Select value={samplingMode} onValueChange={(v) => setSamplingMode(v as "temperature" | "top_p")}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="temperature">Temperature</SelectItem>
-              <SelectItem value="top_p">Top P</SelectItem>
-            </SelectContent>
+          <label className="text-xs font-medium">Sampling Method</label>
+          <Select
+            selectedKeys={[samplingMode]}
+            onSelectionChange={(keys) => {
+              const key = Array.from(keys)[0] as "temperature" | "top_p";
+              if (key) setSamplingMode(key);
+            }}
+            size="sm"
+            aria-label="Sampling method"
+          >
+            <SelectItem key="temperature">Temperature</SelectItem>
+            <SelectItem key="top_p">Top P</SelectItem>
           </Select>
         </div>
 
         {samplingMode === "temperature" ? (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="agent-temp" className="text-xs">Temperature</Label>
-              <span className="text-xs text-muted-foreground font-mono">{temperature.toFixed(1)}</span>
+              <label className="text-xs font-medium">Temperature</label>
+              <span className="text-xs text-default-500 font-mono">{temperature.toFixed(1)}</span>
             </div>
             <input
-              id="agent-temp"
               type="range"
               min="0"
               max="2"
@@ -257,11 +249,10 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
         ) : (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="agent-top-p" className="text-xs">Top P</Label>
-              <span className="text-xs text-muted-foreground font-mono">{topP.toFixed(2)}</span>
+              <label className="text-xs font-medium">Top P</label>
+              <span className="text-xs text-default-500 font-mono">{topP.toFixed(2)}</span>
             </div>
             <input
-              id="agent-top-p"
               type="range"
               min="0"
               max="1"
@@ -273,36 +264,36 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <Label htmlFor="agent-max-tokens" className="text-xs">Max Tokens</Label>
-          <Input
-            id="agent-max-tokens"
-            type="number"
-            value={maxTokens}
-            onChange={(e) => setMaxTokens(parseInt(e.target.value) || 8192)}
-            min={1}
-            className="font-mono text-xs"
-          />
-        </div>
+        <Input
+          label="Max Tokens"
+          labelPlacement="outside"
+          type="number"
+          value={String(maxTokens)}
+          onChange={(e) => setMaxTokens(parseInt(e.target.value) || 8192)}
+          classNames={{ input: "font-mono text-xs" }}
+          size="sm"
+        />
       </div>
 
-      <Separator />
+      <Divider />
 
-      {/* Tool Filter */}
       <div className="space-y-3">
-        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <h4 className="text-xs font-medium text-default-500 uppercase tracking-wide">
           Tool Access
         </h4>
 
-        <Select value={filterMode} onValueChange={(v) => setFilterMode(v as FilterMode)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All tools</SelectItem>
-            <SelectItem value="allow">Allow list</SelectItem>
-            <SelectItem value="deny">Deny list</SelectItem>
-          </SelectContent>
+        <Select
+          selectedKeys={[filterMode]}
+          onSelectionChange={(keys) => {
+            const key = Array.from(keys)[0] as FilterMode;
+            if (key) setFilterMode(key);
+          }}
+          size="sm"
+          aria-label="Tool filter mode"
+        >
+          <SelectItem key="all">All tools</SelectItem>
+          <SelectItem key="allow">Allow list</SelectItem>
+          <SelectItem key="deny">Deny list</SelectItem>
         </Select>
 
         {filterMode !== "all" && (
@@ -311,16 +302,17 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
               value={toolSearch}
               onChange={(e) => setToolSearch(e.target.value)}
               placeholder="Search tools..."
-              className="text-xs"
+              classNames={{ input: "text-xs" }}
+              size="sm"
             />
-            <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-default-200/50">
               {filteredTools.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-3">No tools found.</p>
+                <p className="text-xs text-default-500 p-3">No tools found.</p>
               ) : (
                 filteredTools.map((tool) => (
                   <label
                     key={tool.name}
-                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent/30 cursor-pointer text-xs"
+                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-default-100/30 cursor-pointer text-xs"
                   >
                     <input
                       type="checkbox"
@@ -333,7 +325,7 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
                 ))
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[11px] text-default-500">
               {filterMode === "allow"
                 ? "Only checked tools will be available."
                 : "Checked tools will be blocked."}
@@ -342,28 +334,29 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
         )}
       </div>
 
-      <Separator />
+      <Divider />
 
       <div className="flex items-center gap-2">
         <Button
           type="submit"
+          color="primary"
           size="sm"
-          disabled={!name.trim() || !providerId || !model.trim() || saving}
+          isDisabled={!name.trim() || !providerId || !model.trim() || saving}
           className="gap-1.5"
         >
           {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
           Save
         </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+        <Button type="button" variant="light" size="sm" onPress={onCancel}>
           Cancel
         </Button>
         {agent && onDelete && (
           <Button
             type="button"
-            variant="ghost"
+            variant="light"
             size="sm"
-            onClick={handleDelete}
-            className="ml-auto text-destructive hover:text-destructive gap-1.5"
+            onPress={handleDelete}
+            className="ml-auto text-danger hover:text-danger gap-1.5"
           >
             <Trash2 size={13} />
             Delete

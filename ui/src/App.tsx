@@ -1,7 +1,8 @@
-import { useEffect } from "react";
-import { ThreadList } from "./components/chat/ThreadList.js";
+import { useEffect, useState } from "react";
 import { Thread } from "./components/chat/Thread.js";
 import { TaskPanel } from "./components/chat/TaskPanel.js";
+import { TopBar } from "./components/chat/TopBar.js";
+import { ThreadDrawer } from "./components/chat/ThreadDrawer.js";
 import { SettingsPage } from "./components/settings/SettingsPage.js";
 import { useChatStore } from "./stores/chatStore.js";
 import { useThreadListStore } from "./stores/threadListStore.js";
@@ -14,13 +15,12 @@ import {
   fetchAvailableTools,
   getActiveAgent,
 } from "./api/client.js";
-import { Settings } from "lucide-react";
-import { Button } from "@imdanibytes/nexus-ui";
 
 function NexusApp() {
   const { setAgents, setActiveAgentId, setProviders, setAvailableTools } =
     useChatStore();
-  const { settingsOpen, setSettingsOpen } = useChatStore();
+  const { settingsOpen } = useChatStore();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Load agents, providers, and tools on startup
   useEffect(() => {
@@ -48,7 +48,6 @@ function NexusApp() {
         conversationId: string;
         userMessage: string;
       };
-      // Ensure the thread appears in the sidebar immediately
       useThreadListStore
         .getState()
         .ensureThread(conversationId, userMessage.slice(0, 60) + (userMessage.length > 60 ? "..." : ""));
@@ -85,32 +84,27 @@ function NexusApp() {
   }, [setAvailableTools]);
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="w-64 h-full bg-background border-r border-border flex flex-col flex-shrink-0 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-2">
-          <ThreadList />
+    <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-default-100/60 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50">
+
+      {/* Top bar */}
+      <TopBar onMenuPress={() => setDrawerOpen(true)} />
+
+      {/* Main content — full-width conversation + task panel */}
+      <div className="flex flex-1 min-h-0">
+        <div className="flex-1 min-w-0">
+          <Thread />
         </div>
-        <div className="border-t border-border p-2">
-          <Button
-            variant={settingsOpen ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setSettingsOpen(!settingsOpen)}
-            className="w-full justify-start gap-2 h-9 text-muted-foreground hover:text-foreground"
-          >
-            <Settings size={14} />
-            <span className="text-xs">Settings</span>
-          </Button>
-        </div>
+        <TaskPanel />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 h-full min-h-0 flex">
-        <div className="flex-1 min-w-0">
-          {settingsOpen ? <SettingsPage /> : <Thread />}
-        </div>
-        {!settingsOpen && <TaskPanel />}
-      </div>
+      {/* Thread drawer overlay */}
+      <ThreadDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
+
+      {/* Settings modal overlay */}
+      {settingsOpen && <SettingsPage />}
     </div>
   );
 }

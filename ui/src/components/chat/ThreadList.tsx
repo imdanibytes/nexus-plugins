@@ -6,12 +6,12 @@ import { useChatStore } from "@/stores/chatStore.js";
 import {
   Button,
   Skeleton,
+  Dropdown,
+  DropdownTrigger,
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  cn,
-} from "@imdanibytes/nexus-ui";
+  DropdownItem,
+} from "@heroui/react";
+import { cn } from "@imdanibytes/nexus-ui";
 
 export const ThreadList: FC = () => {
   const threads = useThreadListStore((s) => s.threads);
@@ -33,9 +33,9 @@ export const ThreadList: FC = () => {
   return (
     <div className="aui-thread-list-root flex flex-col gap-1">
       <Button
-        variant="outline"
-        className="aui-thread-list-new h-9 justify-start gap-2 rounded-lg px-3 text-sm hover:bg-muted"
-        onClick={handleNew}
+        variant="bordered"
+        className="aui-thread-list-new h-9 justify-start gap-2 rounded-lg px-3 text-sm hover:bg-default-100"
+        onPress={handleNew}
       >
         <PlusIcon className="size-4" />
         New Thread
@@ -50,7 +50,7 @@ export const ThreadList: FC = () => {
               role="status"
               aria-label="Loading threads"
             >
-              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full rounded-md" />
             </div>
           ))}
         </div>
@@ -61,8 +61,8 @@ export const ThreadList: FC = () => {
             <div
               key={thread.id}
               className={cn(
-                "aui-thread-list-item group flex h-9 items-center gap-2 rounded-lg transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none",
-                isActive && "bg-muted",
+                "aui-thread-list-item group flex h-9 items-center gap-2 rounded-lg transition-colors hover:bg-default-100 focus-visible:bg-default-100 focus-visible:outline-none",
+                isActive && "bg-default-100",
               )}
             >
               <button
@@ -103,26 +103,29 @@ const ThreadItemMenu: FC<{
   onDelete: () => void;
 }> = ({ onDelete }) => {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Dropdown>
+      <DropdownTrigger>
         <Button
-          variant="ghost"
-          size="icon"
-          className="mr-2 size-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100 group-[.bg-muted]:opacity-100"
+          variant="light"
+          isIconOnly
+          size="sm"
+          className="mr-2 size-7 min-w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[open=true]:bg-default-200 data-[open=true]:opacity-100 group-[.bg-default-100]:opacity-100"
         >
           <MoreHorizontalIcon className="size-4" />
           <span className="sr-only">More options</span>
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="bottom" align="start" className="min-w-32">
-        <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
-          onClick={onDelete}
+      </DropdownTrigger>
+      <DropdownMenu aria-label="Thread actions">
+        <DropdownItem
+          key="delete"
+          className="text-danger"
+          color="danger"
+          startContent={<TrashIcon className="size-4" />}
+          onPress={onDelete}
         >
-          <TrashIcon className="size-4" />
           Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownItem>
+      </DropdownMenu>
+    </Dropdown>
   );
 };

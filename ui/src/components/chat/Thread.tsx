@@ -14,9 +14,12 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DownloadIcon,
+  MessageSquareIcon,
   MoreHorizontalIcon,
   PencilIcon,
   RefreshCwIcon,
+  SearchIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { useThreadStore, EMPTY_CONV } from "@/stores/threadStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
@@ -25,22 +28,23 @@ import { getBranchInfo } from "@/lib/message-tree.js";
 import { useAutoScroll } from "@/hooks/useAutoScroll.js";
 import { useChatStream } from "@/hooks/useChatStream.js";
 import { useUsageStore } from "@/stores/usageStore.js";
+import { useChatStore } from "@/stores/chatStore.js";
 import { fetchConversationUsage } from "@/api/client.js";
 import { MarkdownText } from "@/components/chat/MarkdownText.js";
 import { ToolFallback } from "@/components/chat/ToolFallback.js";
 import { TooltipIconButton } from "@/components/chat/tooltip-icon-button.js";
 import { Composer } from "@/components/chat/Composer.js";
 import {
-  cn,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+  Dropdown,
+  DropdownTrigger,
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@imdanibytes/nexus-ui";
+  DropdownItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+} from "@heroui/react";
+import { cn } from "@imdanibytes/nexus-ui";
 import { TimingWaterfall } from "@/components/TimingWaterfall.js";
 import type { TimingSpan } from "@/stores/chatStore.js";
 
@@ -81,14 +85,14 @@ export const Thread: FC = () => {
 
   return (
     <div
-      className="aui-thread-root flex h-full flex-col bg-background"
+      className="aui-thread-root flex h-full flex-col"
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <div
         ref={containerRef}
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
       >
-        {isEmpty && <ThreadWelcome />}
+        {isEmpty && <ThreadWelcome onSend={sendMessage} />}
 
         {messages.map((msg, idx) =>
           msg.role === "user" ? (
@@ -107,8 +111,6 @@ export const Thread: FC = () => {
               message={msg}
               isStreaming={isStreaming}
               onReload={() => {
-                // Find the user message that precedes this assistant message
-                // and regenerate a new response off it (creates a sibling branch)
                 for (let j = idx - 1; j >= 0; j--) {
                   if (messages[j].role === "user") {
                     regenerateResponse(messages[j].id);
@@ -123,13 +125,13 @@ export const Thread: FC = () => {
         <div ref={sentinelRef} className="h-px shrink-0" />
 
         {/* Footer — sticky at bottom */}
-        <div className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+        <div className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl pb-4 md:pb-6">
           {!isAtBottom && (
             <TooltipIconButton
               tooltip="Scroll to bottom"
               variant="outline"
-              className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 dark:bg-background dark:hover:bg-accent"
-              onClick={scrollToBottom}
+              className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 bg-default-100 dark:bg-default-50/60 backdrop-blur-xl border border-default-200 dark:border-default-200/50 hover:bg-default-200/60 dark:hover:bg-default-100/60"
+              onPress={scrollToBottom}
             >
               <ArrowDownIcon />
             </TooltipIconButton>
@@ -147,17 +149,56 @@ export const Thread: FC = () => {
 
 // ── Welcome ──
 
-const ThreadWelcome: FC = () => {
+const SUGGESTIONS = [
+  { icon: MessageSquareIcon, label: "Ask me anything", prompt: "" },
+  { icon: SparklesIcon, label: "Build something", prompt: "Help me build " },
+  { icon: SearchIcon, label: "Research a topic", prompt: "Research " },
+];
+
+const ThreadWelcome: FC<{ onSend: (text: string) => void }> = ({ onSend }) => {
+  const agents = useChatStore((s) => s.agents);
+  const activeAgentId = useChatStore((s) => s.activeAgentId);
+  const activeAgent = agents.find((a) => a.id === activeAgentId);
+  const name = activeAgent?.name || "Nexus";
+
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
-      <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
-        <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
-          <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
-            Hello there!
+      <div className="flex w-full grow flex-col items-center justify-center gap-6">
+        {/* Agent identity */}
+        <div className="flex flex-col items-center gap-2 animate-fade-in">
+          <div className="flex size-12 items-center justify-center rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50">
+            <SparklesIcon className="size-6 text-primary" />
+          </div>
+          <h1 className="text-xl font-semibold text-default-900">
+            {name}
           </h1>
-          <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
-            How can I help you today?
+          <p
+            className="text-sm text-default-500 animate-fade-in"
+            style={{ animationDelay: "75ms" }}
+          >
+            What would you like to work on?
           </p>
+        </div>
+
+        {/* Suggestion chips */}
+        <div
+          className="flex flex-wrap justify-center gap-3 animate-fade-in"
+          style={{ animationDelay: "150ms" }}
+        >
+          {SUGGESTIONS.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => s.prompt && onSend(s.prompt)}
+                className="group flex items-center gap-2 rounded-xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl px-4 py-2.5 text-sm text-default-700 transition-all hover:bg-default-200/50 dark:hover:bg-default-100/50 hover:text-default-900 hover:border-default-300 dark:hover:border-default-300/50"
+              >
+                <Icon className="size-4 text-default-400 group-hover:text-primary transition-colors" />
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -171,7 +212,7 @@ const ThinkingIndicator: FC = () => (
     {[0, 1, 2].map((i) => (
       <span
         key={i}
-        className="inline-block size-2 rounded-full bg-muted-foreground"
+        className="inline-block size-2 rounded-full bg-default-500"
         style={{
           animation: "dot-pulse 1.4s ease-in-out infinite",
           animationDelay: `${i * 0.2}s`,
@@ -194,10 +235,10 @@ const BranchPicker: FC<{ messageId: string }> = ({ messageId }) => {
   if (!info || info.count <= 1) return null;
 
   return (
-    <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+    <div className="flex items-center gap-0.5 text-xs text-default-400">
       <button
         type="button"
-        className="rounded p-0.5 hover:bg-accent disabled:opacity-30"
+        className="rounded p-0.5 hover:bg-default-100/40 disabled:opacity-30"
         disabled={info.index === 0}
         onClick={() => activeId && navigateBranch(activeId, messageId, "prev")}
         aria-label="Previous branch"
@@ -209,7 +250,7 @@ const BranchPicker: FC<{ messageId: string }> = ({ messageId }) => {
       </span>
       <button
         type="button"
-        className="rounded p-0.5 hover:bg-accent disabled:opacity-30"
+        className="rounded p-0.5 hover:bg-default-100/40 disabled:opacity-30"
         disabled={info.index === info.count - 1}
         onClick={() => activeId && navigateBranch(activeId, messageId, "next")}
         aria-label="Next branch"
@@ -284,7 +325,7 @@ const UserMessage: FC<{
 
   return (
     <div
-      className="aui-user-message-root fade-in slide-in-from-bottom-1 group/user mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150"
+      className="aui-user-message-root group/user mx-auto grid w-full max-w-(--thread-max-width) animate-fade-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3"
       data-role="user"
     >
       {isEditing ? (
@@ -294,14 +335,14 @@ const UserMessage: FC<{
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="min-h-[2.5rem] w-full resize-none overflow-hidden rounded-2xl border border-input bg-muted px-4 py-2.5 text-foreground text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="min-h-[2.5rem] w-full resize-none overflow-hidden rounded-2xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-100/40 backdrop-blur-sm px-4 py-2.5 text-foreground text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             rows={1}
           />
           <div className="flex justify-end gap-1.5">
             <button
               type="button"
               onClick={cancelEditing}
-              className="rounded-lg px-3 py-1 text-muted-foreground text-xs hover:bg-accent"
+              className="rounded-lg px-3 py-1 text-default-500 text-xs hover:bg-default-100/40"
             >
               Cancel
             </button>
@@ -316,7 +357,7 @@ const UserMessage: FC<{
         </div>
       ) : (
         <div className="relative col-start-2 min-w-0">
-          <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+          <div className="aui-user-message-content wrap-break-word rounded-2xl bg-default-100/60 backdrop-blur-sm px-4 py-2.5 text-foreground">
             {text}
           </div>
           {isMcp && (
@@ -325,14 +366,14 @@ const UserMessage: FC<{
             </span>
           )}
 
-          {/* Footer — always rendered for stable layout, right-aligned to match bubble */}
+          {/* Footer */}
           <div className="mt-1 flex h-7 items-center justify-end gap-2">
             {!isMcp && !isStreaming && (
               <div className="opacity-0 transition-opacity group-hover/user:opacity-100">
                 <TooltipIconButton
                   tooltip="Edit"
-                  className="size-6 text-muted-foreground"
-                  onClick={startEditing}
+                  className="size-6 text-default-400"
+                  onPress={startEditing}
                 >
                   <PencilIcon className="size-3" />
                 </TooltipIconButton>
@@ -361,7 +402,7 @@ const AssistantMessage: FC<{
 
   return (
     <div
-      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 group/assistant relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+      className="aui-assistant-message-root group/assistant relative mx-auto w-full max-w-(--thread-max-width) animate-fade-in py-3"
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
@@ -393,7 +434,7 @@ const AssistantMessage: FC<{
         })}
 
         {hasError && (
-          <div className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+          <div className="aui-message-error-root mt-2 rounded-md border border-danger/30 bg-danger/10 p-3 text-danger text-sm">
             {typeof message.status?.error === "string"
               ? message.status.error
               : "An error occurred."}
@@ -401,10 +442,10 @@ const AssistantMessage: FC<{
         )}
       </div>
 
-      {/* Footer — always rendered for stable layout, actions fade in on hover */}
+      {/* Footer */}
       <div className="aui-assistant-message-footer mt-1 ml-2 flex h-7 items-center gap-2">
         {message.metadata?.profileName && (
-          <span className="text-[10px] font-medium text-muted-foreground/70">
+          <span className="text-[10px] font-medium text-default-400">
             {message.metadata.profileName}
           </span>
         )}
@@ -461,60 +502,71 @@ const AssistantActionBar: FC<{
 
   return (
     <>
-      <div className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground">
-        <TooltipIconButton tooltip="Copy" onClick={copyText}>
+      <div className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-default-400">
+        <TooltipIconButton tooltip="Copy" onPress={copyText}>
           {copied ? <CheckIcon /> : <CopyIcon />}
         </TooltipIconButton>
 
-        <TooltipIconButton tooltip="Refresh" onClick={onReload}>
+        <TooltipIconButton tooltip="Refresh" onPress={onReload}>
           <RefreshCwIcon />
         </TooltipIconButton>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Dropdown>
+          <DropdownTrigger>
             <TooltipIconButton
               tooltip="More"
-              className="data-[state=open]:bg-accent"
+              className="data-[open=true]:bg-default-200/40"
             >
               <MoreHorizontalIcon />
             </TooltipIconButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="bottom" align="start" className="min-w-32">
-            <DropdownMenuItem
-              className="flex cursor-pointer items-center gap-2"
-              onClick={exportMarkdown}
+          </DropdownTrigger>
+          <DropdownMenu aria-label="Message actions">
+            <DropdownItem
+              key="export"
+              startContent={<DownloadIcon className="size-4" />}
+              onPress={exportMarkdown}
             >
-              <DownloadIcon className="size-4" />
               Export as Markdown
-            </DropdownMenuItem>
-            {timingSpans && (
-              <DropdownMenuItem
-                className="flex cursor-pointer items-center gap-2"
-                onClick={() => setDebugOpen(true)}
+            </DropdownItem>
+            {timingSpans ? (
+              <DropdownItem
+                key="debug"
+                startContent={<BugIcon className="size-4" />}
+                onPress={() => setDebugOpen(true)}
               >
-                <BugIcon className="size-4" />
                 Debug timing
-              </DropdownMenuItem>
+              </DropdownItem>
+            ) : (
+              <DropdownItem key="no-debug" className="hidden">
+                —
+              </DropdownItem>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </Dropdown>
       </div>
 
-      <Sheet open={debugOpen} onOpenChange={setDebugOpen}>
-        <SheetContent
-          side="right"
-          className="sm:max-w-2xl w-[90vw] flex flex-col p-0"
-        >
-          <SheetHeader className="px-4 pt-4 pb-2 border-b border-border">
-            <SheetTitle>Turn timing</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-auto px-4 py-3">
+      <Modal
+        isOpen={debugOpen}
+        onOpenChange={setDebugOpen}
+        size="2xl"
+        scrollBehavior="inside"
+        classNames={{
+          base: "max-w-2xl",
+          body: "p-4",
+          backdrop: "bg-overlay/50",
+        }}
+      >
+        <ModalContent>
+          <ModalHeader className="border-b border-default-200/50">
+            Turn timing
+          </ModalHeader>
+          <ModalBody>
             {timingSpans && (
               <TimingWaterfall spans={timingSpans as TimingSpan[]} />
             )}
-          </div>
-        </SheetContent>
-      </Sheet>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </>
   );
 };
