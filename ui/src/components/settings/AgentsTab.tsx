@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Bot } from "lucide-react";
+import { EmptyState } from "@imdanibytes/nexus-ui";
 import { useChatStore } from "@/stores/chatStore.js";
 import {
   fetchAgents,
@@ -80,15 +81,15 @@ export function AgentsTab() {
       </div>
 
       {agents.length === 0 ? (
-        <div className="text-center py-12 rounded-xl border border-dashed border-default-200/50">
-          <Bot size={28} className="mx-auto mb-3 text-default-400" />
-          <p className="text-sm text-default-500">No agents yet</p>
-          <p className="text-[11px] text-default-400 mt-1">
-            {providers.length === 0
+        <EmptyState
+          icon={Bot}
+          title="No agents yet"
+          description={
+            providers.length === 0
               ? "Add a provider first, then create an agent."
-              : "Create one to save a provider, model, and prompt combination."}
-          </p>
-        </div>
+              : "Create one to save a provider, model, and prompt combination."
+          }
+        />
       ) : (
         <div className="space-y-1">
           {agents.map((a) => {

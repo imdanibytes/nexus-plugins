@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Plus, Pencil, Server, CircleDot,
 } from "lucide-react";
+import { EmptyState } from "@imdanibytes/nexus-ui";
 import { useChatStore } from "@/stores/chatStore.js";
 import {
   fetchProviders,
@@ -83,13 +84,11 @@ export function ProvidersTab() {
       </div>
 
       {providers.length === 0 ? (
-        <div className="text-center py-12 rounded-xl border border-dashed border-default-200/50">
-          <Server size={28} className="mx-auto mb-3 text-default-400" />
-          <p className="text-sm text-default-500">No providers yet</p>
-          <p className="text-[11px] text-default-400 mt-1">
-            Add a provider to connect to an LLM service.
-          </p>
-        </div>
+        <EmptyState
+          icon={Server}
+          title="No providers yet"
+          description="Add a provider to connect to an LLM service."
+        />
       ) : (
         <div className="space-y-1">
           {providers.map((p) => {

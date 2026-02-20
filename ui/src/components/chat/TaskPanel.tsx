@@ -184,7 +184,7 @@ export const TaskPanel: FC = () => {
       animate={{ width: panelOpen ? 256 : 44 }}
       transition={SPRING}
     >
-      <div className="h-full rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 overflow-hidden">
+      <div className="h-full nx-glass overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
           {panelOpen ? (
             <motion.div

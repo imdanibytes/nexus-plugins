@@ -50,7 +50,7 @@ function ToolFallbackRoot({
         data-slot="tool-fallback-root"
         data-state={isOpen ? "open" : "closed"}
         className={cn(
-          "aui-tool-fallback-root group/tool-fallback-root w-full cursor-pointer select-none rounded-xl border border-default-200 dark:border-default-200/50 bg-default-100 dark:bg-default-50/40 backdrop-blur-xl py-3",
+          "aui-tool-fallback-root group/tool-fallback-root w-full cursor-pointer select-none nx-glass py-3",
           className,
         )}
         onClick={handleToggle}

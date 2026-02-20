@@ -58,7 +58,7 @@ export function SettingsPage() {
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
             {/* Nav card */}
-            <nav className="w-[200px] shrink-0 rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 p-4 flex flex-col gap-1">
+            <nav className="w-[200px] shrink-0 nx-glass p-4 flex flex-col gap-1">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-foreground">Settings</h2>
                 <button
@@ -100,7 +100,7 @@ export function SettingsPage() {
             </nav>
 
             {/* Content card */}
-            <div className="flex-1 min-h-0 rounded-xl bg-default-100 dark:bg-default-50/40 backdrop-blur-xl border border-default-200 dark:border-default-200/50 overflow-y-auto p-8">
+            <div className="flex-1 min-h-0 nx-glass overflow-y-auto p-8">
               <AnimatePresence mode="wait">
                 <m.div
                   key={active}
