@@ -162,8 +162,10 @@ function ToolFallbackTrigger({
 function ToolFallbackContent({
   className,
   children,
-  ...props
-}: React.ComponentProps<"div">) {
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) {
   const { isOpen } = useContext(ToolFallbackContext);
 
   return (
@@ -180,7 +182,6 @@ function ToolFallbackContent({
             "aui-tool-fallback-content overflow-hidden text-sm outline-none",
             className,
           )}
-          {...props}
         >
           <div className="mt-3 flex flex-col gap-2 border-t border-default-200/50 pt-2">{children}</div>
         </motion.div>
@@ -374,7 +375,7 @@ function ResultContent({ text }: { text: string }) {
       {isTruncated && (
         <motion.button
           type="button"
-          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          onClick={(e: React.MouseEvent) => { e.stopPropagation(); setExpanded(!expanded); }}
           className="mt-1.5 text-xs text-primary hover:text-primary/80 font-medium"
           whileTap={{ scale: 0.97 }}
         >
