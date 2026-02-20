@@ -54,8 +54,8 @@ importers:
         specifier: ^0.10.1
         version: 0.10.2
       '@imdanibytes/nexus-ui':
-        specifier: ^0.7.0
-        version: 0.7.0(@heroui/react@2.8.9(@types/react@19.2.14)(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.1.18))(@heroui/theme@2.4.26(tailwindcss@4.1.18))(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(tailwindcss@4.1.18)
+        specifier: ^0.7.1
+        version: 0.7.1(@heroui/react@2.8.9(@types/react@19.2.14)(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.1.18))(@heroui/theme@2.4.26(tailwindcss@4.1.18))(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(tailwindcss@4.1.18)
       '@streamdown/code':
         specifier: ^1.0.2
         version: 1.0.2(react@19.2.4)
@@ -1145,8 +1145,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@imdanibytes/nexus-ui@0.7.0':
-    resolution: {integrity: sha512-DgOpN+HBIeM0dr0bdZri9htuHD4LLtSNasAfeZLCPWdoAM5CsVr3lnBYJfqiA0PK569yem0LN0uyhU5/Yg/liw==}
+  '@imdanibytes/nexus-ui@0.7.1':
+    resolution: {integrity: sha512-r4iJWvQPGFDbUoL9eGv/5RB5G1Wa+D2oVgUYU0QLhKpchPyWrH7QOyQngifTZaSdpfMNK2BCIcwdNcMOFMmJkw==}
     peerDependencies:
       '@heroui/react': ^2.0.0
       '@heroui/theme': ^2.0.0
@@ -5572,7 +5572,7 @@ snapshots:
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.26.0(zod@4.3.6)
 
-  '@imdanibytes/nexus-ui@0.7.0(@heroui/react@2.8.9(@types/react@19.2.14)(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.1.18))(@heroui/theme@2.4.26(tailwindcss@4.1.18))(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(tailwindcss@4.1.18)':
+  '@imdanibytes/nexus-ui@0.7.1(@heroui/react@2.8.9(@types/react@19.2.14)(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.1.18))(@heroui/theme@2.4.26(tailwindcss@4.1.18))(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(tailwindcss@4.1.18)':
     dependencies:
       '@heroui/react': 2.8.9(@types/react@19.2.14)(framer-motion@12.34.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.1.18)
       '@heroui/theme': 2.4.26(tailwindcss@4.1.18)
