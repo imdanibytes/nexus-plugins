@@ -1,6 +1,7 @@
 import type { SystemMessageProvider, SystemMessageContext } from "../types.js";
 import { getTaskState } from "../../tasks/storage.js";
-import type { TaskState, AgentMode, Task, TaskStatus } from "../../tasks/types.js";
+import type { TaskState, TaskStatus } from "../../tasks/types.js";
+import { graphEngine } from "../../graph/index.js";
 
 export const taskContextProvider: SystemMessageProvider = {
   name: "task-context",
@@ -16,93 +17,11 @@ export const taskContextProvider: SystemMessageProvider = {
   },
 };
 
-// ── Mode rules ──
-
-interface ModeRules {
-  description: string;
-  instructions: string[];
-  transitions: string[];
-}
-
-const MODE_RULES: Record<AgentMode, ModeRules> = {
-  general: {
-    description: "Default conversational mode. No active workflow.",
-    instructions: [
-      "You are in general mode. Respond conversationally to the user.",
-      "If the user asks you to build, create, or implement something non-trivial, transition to discovery mode to gather requirements first.",
-      "For simple questions or small tasks, stay in general mode and handle them directly.",
-    ],
-    transitions: [
-      "→ discovery: When the user requests a non-trivial build/create/implement task",
-    ],
-  },
-
-  discovery: {
-    description: "Gathering requirements and understanding the problem.",
-    instructions: [
-      "You are gathering requirements. Your job is to fully understand what needs to be built before planning.",
-      "Ask focused, specific questions about scope, constraints, and success criteria.",
-      "Do NOT write code, create files, or start implementation.",
-      "Do NOT create a plan yet — you're still understanding the problem.",
-      "When you have enough clarity to design a solution, transition to planning mode.",
-    ],
-    transitions: [
-      "→ planning: When requirements are clear enough to design a solution",
-      "→ general: If the user abandons the request or it turns out to be trivial",
-    ],
-  },
-
-  planning: {
-    description: "Designing the solution and creating a task plan.",
-    instructions: [
-      "You are designing the solution. Use the delegate tool to consult architect/planner sub-agents.",
-      "Create a plan with task_create_plan, then break it into tasks with task_create.",
-      "Present the plan to the user for approval before proceeding.",
-      "Do NOT execute tasks or write implementation code yet.",
-      "The plan must be approved (task_approve_plan) before transitioning to execution.",
-    ],
-    transitions: [
-      "→ execution: When the plan is approved by the user",
-      "→ discovery: If the plan reveals missing requirements",
-      "→ general: If the user abandons the plan",
-    ],
-  },
-
-  execution: {
-    description: "Working through the approved plan, task by task.",
-    instructions: [
-      "You are executing the approved plan. Work through tasks in order, respecting dependencies.",
-      "Mark each task as in_progress when you start it, and completed when done.",
-      "If you encounter ambiguity not covered in the plan, pause and clarify with the user rather than guessing.",
-      "Use delegate to consult specialist sub-agents (reviewer, security, tester) when appropriate.",
-      "When all tasks are complete, transition to review mode.",
-    ],
-    transitions: [
-      "→ review: When all tasks are completed",
-      "→ discovery: If a task reveals requirements that weren't captured in the plan",
-    ],
-  },
-
-  review: {
-    description: "Reviewing completed work for correctness and quality.",
-    instructions: [
-      "All tasks are complete. Review the work before closing out.",
-      "Use delegate with reviewer/security/tester roles to audit the implementation.",
-      "Present findings to the user. If issues are found, create new tasks and return to execution.",
-      "When the user is satisfied, transition back to general mode.",
-    ],
-    transitions: [
-      "→ execution: If review reveals issues that need fixing (create new tasks first)",
-      "→ general: When the user accepts the completed work",
-    ],
-  },
-};
-
 // ── Formatter ──
 
 function formatAgentState(state: TaskState): string {
   const { plan, tasks, mode } = state;
-  const rules = MODE_RULES[mode];
+  const rules = graphEngine.formatModeRules(mode);
   const lines: string[] = ["<agent_state>"];
 
   // Mode + rules

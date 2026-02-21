@@ -12,7 +12,7 @@ import type { SpanHandle } from "../timing.js";
 import type { RoundResult } from "../round-runner.js";
 import type { PendingToolCall, ResolvedToolResult } from "../ag-ui-types.js";
 
-// ── Turn Strategy ──
+// ── Graph Runtime Context ──
 
 export interface TurnStrategyContext {
   config: TurnConfig;
@@ -42,11 +42,6 @@ export interface TurnStrategyResult {
     pendingToolCalls?: PendingToolCall[];
     resolvedToolResults?: ResolvedToolResult[];
   };
-}
-
-export interface TurnStrategy {
-  readonly name: string;
-  execute(ctx: TurnStrategyContext): Promise<TurnStrategyResult>;
 }
 
 // ── After-Round Callback ──

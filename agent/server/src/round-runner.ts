@@ -16,7 +16,8 @@ import { fenceToolResult } from "./agent.js";
  * or if the candidate is a substring/suffix match. Returns null if nothing
  * is close enough to be a useful suggestion.
  */
-function findClosestTool(
+/** @internal exported for testing */
+export function findClosestTool(
   unknown: string,
   candidates: string[],
 ): string | null {
@@ -50,7 +51,8 @@ function findClosestTool(
   return null;
 }
 
-function levenshtein(a: string, b: string): number {
+/** @internal exported for testing */
+export function levenshtein(a: string, b: string): number {
   const m = a.length;
   const n = b.length;
   const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
@@ -476,7 +478,8 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
  * Extract `<thinking>...</thinking>` tags from text parts into separate
  * thinking MessageParts. Used for prompted CoT (non-native models).
  */
-function extractPromptedThinking(parts: MessagePart[]): MessagePart[] {
+/** @internal exported for testing */
+export function extractPromptedThinking(parts: MessagePart[]): MessagePart[] {
   const result: MessagePart[] = [];
   for (const part of parts) {
     if (part.type !== "text") {

@@ -1,21 +1,20 @@
-import type { TurnStrategy } from "./types.js";
+import type { RoundLoopCallbacks } from "./types.js";
 import type { ExecutionStrategyConfig } from "../types.js";
-import { DefaultStrategy } from "./default.js";
 import { EnhancedStrategy } from "./enhanced.js";
 
 /**
- * Resolve a TurnStrategy from agent config.
- * Undefined/null config -> DefaultStrategy (backward compatible).
+ * Resolve after-round callbacks for the graph runtime.
+ * Default strategy has no callbacks. Enhanced strategy provides
+ * self-critique and verification hooks.
  */
-export function resolveStrategy(config?: ExecutionStrategyConfig | null): TurnStrategy {
-  if (!config || config.type === "default") {
-    return new DefaultStrategy();
-  }
+export function resolveCallbacks(
+  config?: ExecutionStrategyConfig | null,
+): RoundLoopCallbacks | undefined {
+  if (!config || config.type === "default") return undefined;
 
   if (config.type === "enhanced") {
-    return new EnhancedStrategy(config);
+    return new EnhancedStrategy(config).getCallbacks();
   }
 
-  console.warn(`[strategy] unknown strategy type: ${(config as { type: string }).type}, falling back to default`);
-  return new DefaultStrategy();
+  return undefined;
 }

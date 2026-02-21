@@ -4,6 +4,7 @@ import type { ToolDefinition } from "./types.js";
 import type { ToolFilter } from "../types.js";
 import { getToolSettings } from "./settings.js";
 import type { AgentMode } from "../tasks/types.js";
+import { graphEngine } from "../graph/index.js";
 import { delegateTool } from "./handlers/delegate.js";
 import {
   setModeTool,
@@ -69,56 +70,22 @@ function applyToolFilters(
 }
 
 // ── Mode-based tool visibility ──
-// Internal tool names allowed per mode. Tools not listed are hidden from the model.
-// The executor still registers everything (so calls aren't rejected), but the model
-// only sees tools appropriate for its current mode.
-
-const INTERNAL_TOOL_NAMES = new Set([
-  "delegate",
-  "batch_call",
-  "workflow_set_mode",
-  "task_approve_plan",
-  "task_create_plan",
-  "task_create",
-  "task_update",
-  "task_list",
-  "task_get",
-]);
-
-const MODE_TOOLS: Record<AgentMode, { internal: Set<string>; allowMcp: boolean }> = {
-  general: {
-    internal: new Set(["workflow_set_mode", "batch_call"]),
-    allowMcp: true,
-  },
-  discovery: {
-    internal: new Set(["workflow_set_mode"]),
-    allowMcp: false,
-  },
-  planning: {
-    internal: new Set(["delegate", "task_create_plan", "task_create", "task_approve_plan", "workflow_set_mode"]),
-    allowMcp: false,
-  },
-  execution: {
-    internal: new Set(["delegate", "batch_call", "task_update", "task_list", "task_get", "workflow_set_mode"]),
-    allowMcp: true,
-  },
-  review: {
-    internal: new Set(["delegate", "task_list", "task_get", "workflow_set_mode"]),
-    allowMcp: false,
-  },
-};
+// Delegated to the state graph engine. Each node declares which internal tools
+// are visible and whether external (MCP) tools are accessible.
 
 /** Filter definitions based on the current agent workflow mode. */
 function applyModeFilter(defs: ToolDefinition[], mode?: AgentMode): ToolDefinition[] {
   if (!mode) return defs;
 
-  const config = MODE_TOOLS[mode];
+  const internalTools = graphEngine.getInternalTools(mode);
+  const allowExternal = graphEngine.allowsExternalTools(mode);
+
   return defs.filter((d) => {
-    if (INTERNAL_TOOL_NAMES.has(d.name)) {
-      return config.internal.has(d.name);
+    if (graphEngine.internalToolNames.has(d.name)) {
+      return internalTools.has(d.name);
     }
     // Non-internal = MCP or frontend tools
-    return config.allowMcp;
+    return allowExternal;
   });
 }
 

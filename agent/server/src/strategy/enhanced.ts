@@ -1,10 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type {
-  TurnStrategy, TurnStrategyContext, TurnStrategyResult,
-  AfterRoundContext, AfterRoundAction,
+  AfterRoundContext, AfterRoundAction, RoundLoopCallbacks,
 } from "./types.js";
 import type { ExecutionStrategyConfig, ModelTierName } from "../types.js";
-import { executeRoundLoop } from "./round-loop.js";
 import { runSubAgent } from "../sub-agent/runner.js";
 import { getModelTier } from "../config/model-tiers.js";
 import { getAgent } from "../config/agents.js";
@@ -63,7 +61,7 @@ const CRITIQUE_SYSTEM_PROMPT = [
 
 // ── Enhanced Strategy ──
 
-export class EnhancedStrategy implements TurnStrategy {
+export class EnhancedStrategy {
   readonly name = "enhanced";
   private config: ExecutionStrategyConfig;
   private verifyRetries = 0;
@@ -72,12 +70,12 @@ export class EnhancedStrategy implements TurnStrategy {
     this.config = config;
   }
 
-  async execute(ctx: TurnStrategyContext): Promise<TurnStrategyResult> {
+  /** Extract round loop callbacks for use by the graph runtime. */
+  getCallbacks(): RoundLoopCallbacks {
     this.verifyRetries = 0;
-
-    return executeRoundLoop(ctx, {
-      afterRound: (roundCtx) => this.afterRound(roundCtx),
-    });
+    return {
+      afterRound: (ctx) => this.afterRound(ctx),
+    };
   }
 
   private async afterRound(ctx: AfterRoundContext): Promise<AfterRoundAction> {

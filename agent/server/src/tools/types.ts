@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Conversation, SseWriter } from "../types.js";
+import type { TransitionSignal } from "../graph/types.js";
 
 export interface ToolResult {
   tool_use_id: string;
@@ -21,6 +22,8 @@ export interface ToolContext {
   maxTokens?: number;
   /** Temperature — available for sub-agent delegation */
   temperature?: number;
+  /** Transition signal — set by workflow_set_mode to tell the graph to route. */
+  transitionSignal?: TransitionSignal;
 }
 
 export interface ToolDefinition {

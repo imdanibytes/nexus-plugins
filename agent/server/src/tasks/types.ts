@@ -1,6 +1,7 @@
 export type TaskStatus = "pending" | "in_progress" | "completed" | "failed";
 
-export type AgentMode = "general" | "discovery" | "planning" | "execution" | "review";
+export type { AgentMode } from "../graph/types.js";
+import type { AgentMode, InterruptState } from "../graph/types.js";
 
 export interface Task {
   id: string;
@@ -46,4 +47,6 @@ export interface TaskState {
   tasks: Record<string, Task>;
   /** Current workflow mode — governs agent behavior via system message */
   mode: AgentMode;
+  /** Active interrupt awaiting external input, if any */
+  interrupt?: InterruptState | null;
 }

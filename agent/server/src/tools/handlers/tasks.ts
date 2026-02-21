@@ -3,18 +3,9 @@ import type { ToolHandler, ToolResult, ToolContext } from "../types.js";
 import { EventType } from "../../ag-ui-types.js";
 import { getTaskState, saveTaskState, writePlanFile } from "../../tasks/storage.js";
 import type { Task, TaskStatus, Plan, TaskState, AgentMode } from "../../tasks/types.js";
+import { graphEngine } from "../../graph/index.js";
 
-// ── Valid mode transitions ──
-
-const VALID_TRANSITIONS: Record<AgentMode, AgentMode[]> = {
-  general: ["discovery"],
-  discovery: ["planning", "general"],
-  planning: ["execution", "discovery", "general"],
-  execution: ["review", "discovery"],
-  review: ["execution", "general"],
-};
-
-// ── Helper: emit full task state snapshot to UI ──
+// ── Helpers ──
 
 function emitTaskState(ctx: ToolContext, state: TaskState): void {
   ctx.sse.writeEvent(EventType.CUSTOM, {
@@ -26,6 +17,30 @@ function emitTaskState(ctx: ToolContext, state: TaskState): void {
       mode: state.mode,
     },
   });
+}
+
+/**
+ * Signal a mode transition to the graph runtime via the shared TransitionSignal.
+ * Validates the transition first; returns an error string if invalid, null if signaled.
+ */
+function signalTransition(
+  ctx: ToolContext,
+  state: TaskState,
+  target: AgentMode,
+  reason: string,
+): string | null {
+  const result = graphEngine.validateTransition(state.mode, target, state);
+  if (!result.valid) return result.reason!;
+
+  if (ctx.transitionSignal) {
+    ctx.transitionSignal.requested = true;
+    ctx.transitionSignal.target = target;
+    ctx.transitionSignal.reason = reason;
+  } else {
+    // Fallback for non-graph callers (tests, direct invocation)
+    state.mode = target;
+  }
+  return null;
 }
 
 // ── workflow_set_mode ──
@@ -64,48 +79,19 @@ export const setModeTool: ToolHandler = {
     const state = getTaskState(ctx.conversationId);
     const current = state.mode;
 
-    // Validate transition
-    if (target === current) {
-      return { tool_use_id: toolUseId, content: `Already in ${current} mode.` };
+    // Signal transition to the graph runtime (validates first)
+    const error = signalTransition(ctx, state, target, reason);
+    if (error) {
+      return { tool_use_id: toolUseId, content: error, is_error: true };
     }
-
-    const allowed = VALID_TRANSITIONS[current];
-    if (!allowed?.includes(target)) {
-      return {
-        tool_use_id: toolUseId,
-        content: `Cannot transition from ${current} to ${target}. Valid transitions: ${allowed?.join(", ") || "none"}`,
-        is_error: true,
-      };
-    }
-
-    // Gate: planning → execution requires approved plan
-    if (current === "planning" && target === "execution") {
-      if (!state.plan) {
-        return {
-          tool_use_id: toolUseId,
-          content: "Cannot enter execution mode without a plan. Create one with task_create_plan first.",
-          is_error: true,
-        };
-      }
-      if (state.plan.approved !== true) {
-        return {
-          tool_use_id: toolUseId,
-          content: "Cannot enter execution mode — plan must be approved first. Use task_approve_plan.",
-          is_error: true,
-        };
-      }
-    }
-
-    state.mode = target;
-    saveTaskState(ctx.conversationId, state);
 
     // Update plan file if it exists
     if (state.plan) {
       const fp = writePlanFile(ctx.conversationId, state);
       state.plan.filePath = fp;
-      saveTaskState(ctx.conversationId, state);
     }
 
+    saveTaskState(ctx.conversationId, state);
     emitTaskState(ctx, state);
 
     const msg = reason
@@ -159,8 +145,11 @@ export const approvePlanTool: ToolHandler = {
     state.plan.updatedAt = Date.now();
 
     if (approved) {
-      // Auto-transition to execution
-      state.mode = "execution";
+      // Signal auto-transition to execution via the graph runtime
+      const error = signalTransition(ctx, state, "execution", "Plan approved");
+      if (error) {
+        return { tool_use_id: toolUseId, content: error, is_error: true };
+      }
     }
 
     // Update plan file
@@ -233,9 +222,9 @@ export const createPlanTool: ToolHandler = {
       updatedAt: now,
     };
 
-    // Auto-transition to planning mode
+    // Signal auto-transition to planning mode via the graph runtime
     if (state.mode === "general" || state.mode === "discovery") {
-      state.mode = "planning";
+      signalTransition(ctx, state, "planning", "Plan created");
     }
 
     // Write plan markdown file

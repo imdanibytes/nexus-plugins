@@ -19,7 +19,8 @@ import { outputStyleProvider } from "./system-message/providers/output-style.js"
 import { taskContextProvider } from "./system-message/providers/task-context.js";
 import { retrievalPrimingProvider } from "./system-message/providers/retrieval-priming.js";
 import { thinkingPromptProvider } from "./system-message/providers/thinking-prompt.js";
-import { resolveStrategy } from "./strategy/resolve.js";
+import { resolveCallbacks } from "./strategy/resolve.js";
+import { agentGraph } from "./graph/index.js";
 import { SpanCollector } from "./timing.js";
 import { CompactionPipeline } from "./compaction/pipeline.js";
 import { toolResponsePruner } from "./compaction/passes/tool-response-pruner.js";
@@ -199,12 +200,11 @@ async function _runAgentTurnInner(
 
   // ── 3. Build tools (mode-aware: hides tools irrelevant to current workflow phase) ──
   const toolSetupSpan = setupSpan.span("build_tools");
-  let lastMode = getTaskState(conversationId).mode;
-  let registry = await getToolRegistry(
+  const registry = await getToolRegistry(
     toolSettings.globalToolFilter,
     config.agent?.toolFilter,
     frontendTools,
-    lastMode,
+    getTaskState(conversationId).mode,
   );
   toolSetupSpan.end();
 
@@ -280,7 +280,7 @@ async function _runAgentTurnInner(
   // ── 6. Build API messages ──
   const apiMessages = buildApiMessages(compacted.messages, registry.wireName);
 
-  // ── 7. Execute strategy ──
+  // ── 7. Execute graph runtime ──
   const allAssistantParts: MessagePart[] = [];
   let turnResult: TurnResult = {};
 
@@ -292,7 +292,7 @@ async function _runAgentTurnInner(
       : {}),
   });
 
-  // Fire activity phrase generation (best-effort, parallel with strategy)
+  // Fire activity phrase generation (best-effort, parallel with graph run)
   generateActivityPhrase(
     compacted.messages,
     { client: config.client, model: config.model },
@@ -306,8 +306,8 @@ async function _runAgentTurnInner(
     }
   }).catch(() => {});
 
-  const strategy = resolveStrategy(config.agent?.executionStrategy);
-  const strategyResult = await strategy.execute({
+  const callbacks = resolveCallbacks(config.agent?.executionStrategy);
+  const strategyResult = await agentGraph.run({
     config,
     systemMessageBuilder,
     apiMessages,
@@ -332,7 +332,7 @@ async function _runAgentTurnInner(
         frontendTools,
         getTaskState(conversationId).mode,
       ),
-  });
+  }, callbacks);
 
   allAssistantParts.push(...strategyResult.allAssistantParts);
   turnResult = strategyResult.turnResult;
