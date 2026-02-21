@@ -1,0 +1,143 @@
+import { useState, useEffect, useCallback } from "react";
+import {
+  Plus, Pencil, Server, CircleDot,
+} from "lucide-react";
+import { EmptyState } from "@imdanibytes/nexus-ui";
+import { useChatStore } from "@/stores/chatStore.js";
+import {
+  fetchProviders,
+  probeProviderApi,
+  type ProviderPublic,
+  type EndpointStatus,
+} from "@/api/client.js";
+import { ProviderEditor } from "./ProviderEditor.js";
+import { Button, Chip } from "@heroui/react";
+
+const TYPE_LABELS: Record<string, string> = {
+  ollama: "Ollama",
+  anthropic: "Anthropic",
+  bedrock: "Bedrock",
+  "openai-compatible": "OpenAI",
+};
+
+export function ProvidersTab() {
+  const { providers, setProviders } = useChatStore();
+  const [editing, setEditing] = useState<ProviderPublic | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [probeResults, setProbeResults] = useState<Record<string, EndpointStatus>>({});
+
+  const refresh = useCallback(async () => {
+    const list = await fetchProviders();
+    setProviders(list);
+    setProbeResults({});
+  }, [setProviders]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    for (const p of providers) {
+      if (!probeResults[p.id]) {
+        probeProviderApi(p.id)
+          .then((status) =>
+            setProbeResults((prev) => ({ ...prev, [p.id]: status })),
+          )
+          .catch(() => {});
+      }
+    }
+  }, [providers]);
+
+  if (creating) {
+    return (
+      <ProviderEditor
+        onSave={() => { setCreating(false); refresh(); }}
+        onCancel={() => setCreating(false)}
+      />
+    );
+  }
+
+  if (editing) {
+    return (
+      <ProviderEditor
+        provider={editing}
+        onSave={() => { setEditing(null); refresh(); }}
+        onCancel={() => setEditing(null)}
+        onDelete={() => { setEditing(null); refresh(); }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium">Providers</h3>
+          <p className="text-[11px] text-default-500 mt-0.5">
+            LLM service connections.
+          </p>
+        </div>
+        <Button size="sm" color="primary" onPress={() => setCreating(true)} className="gap-1.5">
+          <Plus size={13} />
+          New
+        </Button>
+      </div>
+
+      {providers.length === 0 ? (
+        <EmptyState
+          icon={Server}
+          title="No providers yet"
+          description="Add a provider to connect to an LLM service."
+        />
+      ) : (
+        <div className="space-y-1">
+          {providers.map((p) => {
+            const probe = probeResults[p.id];
+            return (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-transparent hover:bg-default-100/30 transition-colors"
+              >
+                <CircleDot
+                  size={10}
+                  strokeWidth={2.5}
+                  className={
+                    probe?.reachable
+                      ? "text-green-400"
+                      : probe && !probe.reachable
+                        ? "text-danger"
+                        : "text-default-400/40"
+                  }
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{p.name}</div>
+                  {p.endpoint && (
+                    <div className="text-[11px] text-default-500 truncate font-mono">
+                      {p.endpoint}
+                    </div>
+                  )}
+                </div>
+                <Chip
+                  variant="flat"
+                  size="sm"
+                  className="text-[10px] flex-shrink-0"
+                >
+                  {TYPE_LABELS[p.type] || p.type}
+                </Chip>
+                <Button
+                  isIconOnly
+                  variant="light"
+                  size="sm"
+                  onPress={() => setEditing(p)}
+                  className="h-7 w-7 min-w-7 flex-shrink-0 text-default-400 hover:text-default-900"
+                >
+                  <Pencil size={12} />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

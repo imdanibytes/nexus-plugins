@@ -1,0 +1,243 @@
+@import "tailwindcss";
+@import "@imdanibytes/nexus-ui/styles";
+
+@plugin "../hero.ts";
+
+@source "../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@imdanibytes/nexus-ui/dist";
+@source "../../node_modules/@heroui/theme/dist/**/*.js";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.2s ease-out;
+  --animate-dot-pulse: dot-pulse 1.4s ease-in-out infinite;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: hsl(var(--heroui-foreground));
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  overflow: hidden;
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  height: 100%;
+  /* Dev-only: simulates host app gradient so the glass panel is visible.
+     In production the host provides bg-background + gradient blobs. */
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(6,182,212,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 75% 25%, rgba(139,92,246,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 30% 75%, rgba(59,130,246,0.05) 0%, transparent 70%),
+    hsl(var(--heroui-background));
+}
+html:is(.dark) {
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(6,182,212,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 75% 25%, rgba(139,92,246,0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 30% 75%, rgba(59,130,246,0.08) 0%, transparent 70%),
+    hsl(var(--heroui-background));
+}
+#root {
+  height: 100%;
+  padding: 8px;
+}
+
+/* Footnote scroll flash */
+@keyframes md-flash {
+  0% { background-color: hsl(var(--heroui-primary) / 0.2); }
+  100% { background-color: transparent; }
+}
+.aui-md-flash {
+  animation: md-flash 1.5s ease-out;
+  border-radius: 4px;
+}
+
+/* ── Streamdown code blocks — glass treatment ── */
+
+.aui-md [data-streamdown="code-block"] {
+  margin-top: 0.625rem;
+  margin-bottom: 0.625rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--heroui-default-200));
+  overflow: hidden;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+:is(.dark) .aui-md [data-streamdown="code-block"] {
+  border-color: hsl(var(--heroui-default-200) / 0.5);
+}
+.aui-md [data-streamdown="code-block-header"] {
+  background: hsl(var(--heroui-default-100));
+  padding: 0.375rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--heroui-default-200));
+}
+:is(.dark) .aui-md [data-streamdown="code-block-header"] {
+  background: hsl(var(--heroui-default-100) / 0.4);
+  border-bottom-color: hsl(var(--heroui-default-200) / 0.5);
+}
+.aui-md [data-streamdown="code-block-body"] {
+  background: hsl(var(--heroui-default-100) / 0.6);
+  border-top: none !important;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.625;
+}
+:is(.dark) .aui-md [data-streamdown="code-block-body"] {
+  background: hsl(var(--heroui-default-100) / 0.2);
+}
+/* Shiki dual-theme: inline `color` beats class-based dark:text-[...].
+   Force the --shiki-dark custom property in dark mode. */
+:is(.dark) [data-streamdown="code-block-body"] span[style] {
+  color: var(--shiki-dark, inherit) !important;
+}
+@media (prefers-color-scheme: dark) {
+  [data-streamdown="code-block-body"] span[style] {
+    color: var(--shiki-dark, inherit) !important;
+  }
+}
+.aui-md [data-streamdown="inline-code"] {
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
+  background: hsl(var(--heroui-default-100) / 0.4);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.375rem;
+  font-size: 0.85em;
+}
+
+/* ── Markdown content — glass compatible ── */
+
+.markdown-content {
+  line-height: 1.65;
+}
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.markdown-content h1 { font-size: 1.375em; }
+.markdown-content h2 { font-size: 1.2em; }
+.markdown-content h3 { font-size: 1.05em; }
+.markdown-content p {
+  margin: 0.5em 0;
+}
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+.markdown-content li {
+  margin: 0.25em 0;
+}
+.markdown-content li > p {
+  margin: 0.25em 0;
+}
+.markdown-content code {
+  background: hsl(var(--heroui-default-100) / 0.5);
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  font-size: 0.875em;
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+}
+.markdown-content pre {
+  background: hsl(var(--heroui-default-100) / 0.3);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 0.75em 0;
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
+}
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.8125em;
+}
+.markdown-content a {
+  color: hsl(var(--heroui-primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.markdown-content a:hover {
+  opacity: 0.8;
+}
+.markdown-content blockquote {
+  border-left: 3px solid hsl(var(--heroui-default-200) / 0.5);
+  padding-left: 1em;
+  margin: 0.75em 0;
+  color: hsl(var(--heroui-default-500));
+}
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid hsl(var(--heroui-default-200) / 0.5);
+  margin: 1.5em 0;
+}
+.markdown-content .table-wrap {
+  overflow-x: auto;
+  margin: 0.75em 0;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
+}
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid hsl(var(--heroui-default-200) / 0.5);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  font-size: 0.875em;
+}
+.markdown-content th {
+  background: hsl(var(--heroui-default-100) / 0.4);
+  font-weight: 600;
+}
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* ── Collapsible animation for ToolFallback ── */
+
+@keyframes collapsible-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+/* ── Tool loading shimmer ──
+ * Two background layers: a shimmer sweep on top, solid base color underneath.
+ * The base layer ensures text is always visible; the shimmer glides over it.
+ * Pattern from https://motion-primitives.com/docs/text-shimmer */
+
+@keyframes tool-text-shimmer {
+  0% { background-position: 100% center, 0 0; }
+  100% { background-position: 0% center, 0 0; }
+}
+.tool-pulse {
+  --shimmer-base: hsl(var(--heroui-default-500));
+  --shimmer-highlight: hsl(var(--heroui-default-300));
+  --shimmer-spread: 40px;
+  background-image:
+    linear-gradient(90deg, transparent calc(50% - var(--shimmer-spread)), var(--shimmer-highlight), transparent calc(50% + var(--shimmer-spread))),
+    linear-gradient(var(--shimmer-base), var(--shimmer-base));
+  background-size: 250% 100%, auto;
+  background-repeat: no-repeat, padding-box;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: tool-text-shimmer 3s linear infinite;
+}
+

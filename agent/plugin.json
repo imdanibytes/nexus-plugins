@@ -1,0 +1,143 @@
+{
+  "id": "com.nexus.agent",
+  "name": "Nexus Agent",
+  "version": "0.5.0",
+  "description": "AI chat with tool calling, elicitations, and rich UI surfaces",
+  "author": "imdanibytes",
+  "license": "MIT",
+  "homepage": "https://github.com/imdanibytes/nexus-agent",
+  "image": "ghcr.io/imdanibytes/nexus-plugin-agent:0.5.0",
+  "ui": {
+    "port": 80,
+    "path": "/"
+  },
+  "permissions": [
+    "system:info",
+    "mcp:call",
+    "network:local",
+    "filesystem:write"
+  ],
+  "health": {
+    "endpoint": "/health",
+    "interval_secs": 30
+  },
+  "mcp": {
+    "tools": [
+      {
+        "name": "list_agents",
+        "description": "List all configured agents with their id, name, and model. Use to discover available agents before sending messages or to show the user their agent options. Do NOT call repeatedly — the list rarely changes within a session.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {}
+        },
+        "requires_approval": false
+      },
+      {
+        "name": "get_agent",
+        "description": "Get full details of a specific agent including its system prompt, provider, and model configuration. Use when you need to understand an agent's capabilities or configuration before delegating work. Do NOT use just to check if an agent exists — use list_agents for that.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "agent_id": {
+              "type": "string",
+              "description": "The agent ID to retrieve"
+            }
+          },
+          "required": ["agent_id"]
+        },
+        "requires_approval": true
+      },
+      {
+        "name": "list_conversations",
+        "description": "List all conversations with id, title, message count, and timestamps. Use to find a specific past conversation by title or to show conversation history. Do NOT call this to check the current conversation — you already have that context.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {}
+        },
+        "requires_approval": true
+      },
+      {
+        "name": "get_conversation",
+        "description": "Get the full message history of a specific conversation including text content and tool call summaries. Use to review what happened in a past conversation or to gather context from another thread. Do NOT use on the current conversation — you already have the message history. Can return large payloads for long conversations.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "conversation_id": {
+              "type": "string",
+              "description": "The conversation ID to retrieve"
+            }
+          },
+          "required": ["conversation_id"]
+        },
+        "requires_approval": true
+      },
+      {
+        "name": "send_message",
+        "description": "Send a message to an agent and receive its complete response (blocks until done). Creates a new conversation if conversation_id is omitted. Use for cross-agent communication — e.g., asking a different agent to perform a task and getting the result. Do NOT use to talk to yourself or to simulate user messages. The target agent will execute its own tool calls before responding, so this can take significant time.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "The message to send to the agent"
+            },
+            "conversation_id": {
+              "type": "string",
+              "description": "Existing conversation ID to continue. Omit to start a new conversation."
+            },
+            "agent_id": {
+              "type": "string",
+              "description": "Agent ID to use. Omit to use the active agent or conversation default."
+            }
+          },
+          "required": ["message"]
+        },
+        "requires_approval": true
+      }
+    ]
+  },
+  "env": {},
+  "min_nexus_version": "0.6.2",
+  "settings": [
+    {
+      "key": "llm_endpoint",
+      "type": "string",
+      "label": "LLM Endpoint",
+      "default": "http://host.docker.internal:11434",
+      "description": "Anthropic-compatible API URL (Ollama, vLLM, Anthropic, etc.)"
+    },
+    {
+      "key": "llm_api_key",
+      "type": "string",
+      "label": "API Key",
+      "default": "",
+      "description": "API key (leave empty for Ollama)"
+    },
+    {
+      "key": "llm_model",
+      "type": "string",
+      "label": "Model",
+      "default": "qwen3:30b",
+      "description": "Model name"
+    },
+    {
+      "key": "system_prompt",
+      "type": "string",
+      "label": "System Prompt",
+      "default": "You are a helpful assistant with access to tools from the Nexus platform.",
+      "description": "System prompt sent to the LLM"
+    },
+    {
+      "key": "max_tool_rounds",
+      "type": "number",
+      "label": "Max Tool Rounds",
+      "default": 10,
+      "description": "Maximum number of tool call rounds per turn"
+    }
+  ]
+}
