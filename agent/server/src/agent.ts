@@ -344,46 +344,13 @@ async function _runAgentTurnInner(
     turnSpan.setMetadata("aborted", true);
   }
 
-  // ── 8b. Post-turn mechanics (parallel: auto-title + follow-ups) ──
-  if (!wasAborted && !turnResult.pendingToolCalls) {
-    const fallback = { client: config.client, model: config.model };
-    const signal = abortController.signal;
-
-    const titleSpan = turnSpan.span("auto_title");
-    const followUpSpan = turnSpan.span("follow_ups");
-
-    const [newTitle, suggestions] = await Promise.all([
-      generateTitle(conv.title, wireMessages, fallback, signal),
-      generateFollowUps(wireMessages, fallback, signal),
-    ]);
-
-    if (newTitle) {
-      conv.title = newTitle;
-      conv.updatedAt = Date.now();
-      sse.writeEvent(EventType.CUSTOM, {
-        name: "title_update",
-        value: { title: newTitle },
-      });
-    }
-    titleSpan.end();
-
-    if (suggestions && suggestions.length > 0) {
-      sse.writeEvent(EventType.CUSTOM, {
-        name: "follow_up_suggestions",
-        value: { suggestions },
-      });
-    }
-    followUpSpan.end();
-  }
-
-  abortController.abort();
   turnSpan.end();
   const timingSpans = timing.toJSON();
 
-  // ── 9. Persist conversation ──
+  // ── 9. Persist conversation (pre-mechanics snapshot) ──
   mergeAndSave(conv, conversationId);
 
-  // ── 10. Emit timing + RUN_FINISHED ──
+  // ── 10. Emit timing + RUN_FINISHED (unblocks frontend immediately) ──
   sse.writeEvent(EventType.CUSTOM, {
     name: "timing",
     value: { spans: timingSpans },
@@ -396,7 +363,7 @@ async function _runAgentTurnInner(
     });
   }
 
-  const stopReason = abortController.signal.aborted
+  const stopReason = wasAborted
     ? "abort"
     : turnResult.pendingToolCalls
       ? "pending_tool_calls"
@@ -415,6 +382,35 @@ async function _runAgentTurnInner(
         : {}),
     },
   });
+
+  // ── 11. Post-turn mechanics (after RUN_FINISHED — doesn't block the UI) ──
+  if (!wasAborted && !turnResult.pendingToolCalls) {
+    const fallback = { client: config.client, model: config.model };
+
+    const [newTitle, suggestions] = await Promise.all([
+      generateTitle(conv.title, wireMessages, fallback, abortController.signal),
+      generateFollowUps(wireMessages, fallback, abortController.signal),
+    ]);
+
+    if (newTitle) {
+      conv.title = newTitle;
+      conv.updatedAt = Date.now();
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "title_update",
+        value: { title: newTitle },
+      });
+      mergeAndSave(conv, conversationId);
+    }
+
+    if (suggestions && suggestions.length > 0) {
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "follow_up_suggestions",
+        value: { suggestions },
+      });
+    }
+  }
+
+  abortController.abort();
   sse.close();
 
   return turnResult;

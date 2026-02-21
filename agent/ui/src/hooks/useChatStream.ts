@@ -345,14 +345,7 @@ async function consumeStream(
         case EventType.CUSTOM: {
           const name = event.name as string;
 
-          if (name === "title_update") {
-            const val = event.value as { title?: string };
-            if (val?.title && conversationId) {
-              useThreadListStore
-                .getState()
-                .updateThreadTitle(conversationId, val.title);
-            }
-          } else if (name === "timing") {
+          if (name === "timing") {
             const val = event.value as { spans?: import("@/stores/chatStore.js").TimingSpan[] };
             if (val?.spans) {
               metadata = { ...metadata, timingSpans: val.spans };
@@ -376,11 +369,6 @@ async function consumeStream(
                 tasks: val.tasks,
                 mode: val.mode ?? "general",
               });
-            }
-          } else if (name === "follow_up_suggestions") {
-            const val = event.value as { suggestions?: string[] };
-            if (val?.suggestions && conversationId) {
-              useThreadStore.getState().setSuggestions(conversationId, val.suggestions);
             }
           } else if (name === "loop_detected") {
             // Loop detection — add a system notice to the message parts
@@ -654,6 +642,32 @@ export function useChatStream(): {
   const isStreaming = useThreadStore(
     (s) => s.conversations[activeThreadId ?? ""]?.isStreaming ?? false,
   );
+
+  // ── Broadcast handlers for late-arriving events (after RUN_FINISHED) ──
+  // These events arrive after the turn stream has ended because the server
+  // emits RUN_FINISHED before running post-turn mechanics (title generation,
+  // follow-up suggestions). Broadcast handlers fire on the event bus dispatch
+  // path before stream routing, so they work regardless of stream state.
+  useEffect(() => {
+    const unsubTitle = eventBus.on("title_update", (event) => {
+      const val = event.value as { title?: string };
+      if (val?.title && event.threadId) {
+        useThreadListStore.getState().updateThreadTitle(event.threadId, val.title);
+      }
+    });
+
+    const unsubSuggestions = eventBus.on("follow_up_suggestions", (event) => {
+      const val = event.value as { suggestions?: string[] };
+      if (val?.suggestions && event.threadId) {
+        useThreadStore.getState().setSuggestions(event.threadId, val.suggestions);
+      }
+    });
+
+    return () => {
+      unsubTitle();
+      unsubSuggestions();
+    };
+  }, []);
 
   const sendMessage = useCallback(async (text: string) => {
     fetchToolSettings()
