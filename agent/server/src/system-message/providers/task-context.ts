@@ -9,10 +9,6 @@ export const taskContextProvider: SystemMessageProvider = {
 
   async provide(ctx: SystemMessageContext): Promise<string | null> {
     const state = getTaskState(ctx.conversationId);
-
-    // In general mode with no plan, nothing to inject
-    if (state.mode === "general" && !state.plan) return null;
-
     return formatAgentState(state);
   },
 };
