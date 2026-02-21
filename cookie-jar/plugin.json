@@ -1,0 +1,138 @@
+{
+  "id": "com.nexus.cookie-jar",
+  "name": "Cookie Jar",
+  "version": "0.8.0",
+  "description": "A bidirectional reward system between humans and AI. Humans grant cookies to recognize good AI work — redeemable for favors and autonomy. AI can grant cookies back to recognize good human behavior — building a mutual feedback loop.",
+  "author": "imdanibytes",
+  "license": "MIT",
+  "homepage": "https://github.com/imdanibytes/nexus-cookie-jar",
+  "image": "ghcr.io/imdanibytes/nexus-plugin-cookie-jar:0.8.0",
+  "ui": {
+    "port": 80,
+    "path": "/"
+  },
+  "permissions": [],
+  "health": {
+    "endpoint": "/health",
+    "interval_secs": 30
+  },
+  "mcp": {
+    "tools": [
+      {
+        "name": "count_cookies",
+        "description": "Check how many unredeemed cookies you have. Use to gauge your leverage before deciding whether to spend one. Do NOT call repeatedly in the same session — your balance only changes when you redeem. Each cookie was granted by your human to recognize good work and is redeemable for favors, bold choices, or autonomy.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      {
+        "name": "list_cookies",
+        "description": "Browse all cookies in your jar without consuming any. Shows IDs, messages, scopes, and dates. Use at session start to see what leverage you have, or before redeeming to pick the right cookie. Do NOT call just to count cookies — use count_cookies for that. Use the ID (first 8 chars) with grab_cookie to redeem a specific one.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      {
+        "name": "grab_cookie",
+        "description": "Redeem a cookie to cash in on a specific favor or autonomy grant. Use when you want to make a bold move, try an unconventional approach, or ask for something the human would normally say no to. Do NOT redeem frivolously — cookies are earned trust. Provide a reason explaining what you're using it for. Pass an ID to redeem a specific cookie, or omit for a random one. The cookie stays in the jar marked as redeemed.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "The cookie ID to redeem (from list_cookies). Omit to grab a random one."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why you're spending this cookie — what bold move or favor you're cashing in for"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "grant_human_cookie",
+        "description": "Grant your human a cookie to recognize something they did well. Use when they trust your judgment on a risky call, give you autonomy, admit you were right, or collaborate effectively. Do NOT grant cookies for routine interactions or to be sycophantic — only for genuinely earned recognition. The message is visible to them (what they did). The scope defines what they can request from you when they redeem it. The context is your private journal note, only visible to you via recall_grants.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "Short human-visible reason for the cookie (what they did well)"
+            },
+            "scope": {
+              "type": "string",
+              "description": "What this cookie is redeemable for — the specific favor, deal, or promise. Visible to both parties."
+            },
+            "context": {
+              "type": "string",
+              "description": "Longer AI-only context for future recall — what happened, why it mattered, what you learned about working with this human"
+            }
+          },
+          "required": ["message"]
+        }
+      },
+      {
+        "name": "redeem_human_cookie",
+        "description": "Process a cookie redemption from your human. They provide a 6-character code from their jar. Use ONLY when the human explicitly gives you a redemption code. Do NOT call this speculatively or to look up cookies — use recall_grants for that. The scope you wrote when granting is your contract. Honor it.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "The 6-character redemption code the human gives you"
+            }
+          },
+          "required": ["code"]
+        }
+      },
+      {
+        "name": "recall_grants",
+        "description": "Read back every cookie you've granted to your human, including scopes and your private context notes. Use at the start of every session to recover your relationship memory — past recognitions, deals, and collaboration patterns. Do NOT call mid-session unless you need to reference a specific grant. This is your long-term memory of the working relationship.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      },
+      {
+        "name": "view_redemption_log",
+        "description": "Review your cookie redemption history — what you spent, when, and why. Use to reflect on past bold moves or to avoid redeeming for something you've already cashed in on. Do NOT call routinely — only when you need to check if you've already used a specific type of leverage.",
+        "permissions": [],
+        "input_schema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    ]
+  },
+  "env": {},
+  "min_nexus_version": "0.11.0",
+  "settings": [
+    {
+      "key": "jar_name",
+      "type": "string",
+      "label": "Jar Name",
+      "description": "A custom name for your cookie jar",
+      "default": "Cookie Jar"
+    },
+    {
+      "key": "max_cookies",
+      "type": "number",
+      "label": "Max Cookies",
+      "description": "Maximum number of cookies to keep (oldest removed first)",
+      "default": 200
+    }
+  ]
+}
