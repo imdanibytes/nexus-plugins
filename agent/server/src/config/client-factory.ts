@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Provider } from "./types.js";
+import type { Provider } from "../types.js";
 
 // Cache keyed by provider ID — stale entries detected via updatedAt
 const clientCache = new Map<string, { client: Anthropic; updatedAt: number }>();

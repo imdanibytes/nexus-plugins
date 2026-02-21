@@ -11,6 +11,7 @@ import { useChatStore } from "@/stores/chatStore.js";
 import { useMcpTurnStore } from "@/stores/mcpTurnStore.js";
 import { useUsageStore } from "@/stores/usageStore.js";
 import { useTaskStore } from "@/stores/taskStore.js";
+import { toolToActivity, strategyStepToActivity } from "@/lib/activity-labels.js";
 import { fetchToolSettings } from "@/api/client.js";
 import type { ConversationUsage } from "@/api/client.js";
 import type { WireMessage } from "@/api/client.js";
@@ -181,6 +182,9 @@ async function consumeStream(
     ...(activeAgent ? { profileName: activeAgent.name } : {}),
   };
 
+  // Contextual activity phrase from the server (fast-tier LLM or curated fallback)
+  let activityPhrase: string | null = null;
+
   /** Write streaming parts to this conversation's slot in the store */
   function pushToStore(): void {
     useThreadStore
@@ -259,11 +263,13 @@ async function consumeStream(
       switch (event.type) {
         case EventType.RUN_STARTED: {
           currentRunId = (event.runId as string) ?? null;
+          // Don't set activity — wait for the contextual phrase from the server
           break;
         }
 
         case EventType.TEXT_MESSAGE_START: {
           parts.push({ type: "text", text: "" });
+          useThreadStore.getState().setActivity(conversationId, null);
           break;
         }
 
@@ -293,6 +299,10 @@ async function consumeStream(
             argsText: "",
             status: { type: "running" },
           });
+          useThreadStore.getState().setActivity(
+            conversationId,
+            toolToActivity(event.toolCallName as string),
+          );
           pushToStore();
           break;
         }
@@ -327,6 +337,7 @@ async function consumeStream(
               status: { type: "complete" },
             };
           }
+          useThreadStore.getState().setActivity(conversationId, activityPhrase ?? "Thinking...");
           pushToStore();
           break;
         }
@@ -379,6 +390,41 @@ async function consumeStream(
               : `Loop detected after ${val?.rounds ?? "several"} rounds. Stopped automatically.`;
             parts.push({ type: "text", text: `\n\n---\n*${notice}*` });
             pushToStore();
+          } else if (name === "strategy_step") {
+            const val = event.value as { step: string; status: string };
+            if (val) {
+              useThreadStore.getState().setActivity(
+                conversationId,
+                strategyStepToActivity(val.step, val.status),
+              );
+            }
+          } else if (name === "activity_phrase") {
+            const val = event.value as { phrase?: string };
+            if (val?.phrase) {
+              activityPhrase = val.phrase;
+              // Only set if nothing more specific is showing (e.g., tool activity or thinking)
+              const current = useThreadStore.getState().conversations[conversationId]?.activity;
+              if (!current) {
+                useThreadStore.getState().setActivity(conversationId, activityPhrase);
+              }
+            }
+          } else if (name === "thinking_start") {
+            parts.push({ type: "thinking", thinking: "" });
+            useThreadStore.getState().setActivity(conversationId, "Thinking deeply...");
+            pushToStore();
+          } else if (name === "thinking_delta") {
+            const val = event.value as { delta?: string };
+            if (val?.delta) {
+              for (let i = parts.length - 1; i >= 0; i--) {
+                if (parts[i].type === "thinking") {
+                  (parts[i] as { type: "thinking"; thinking: string }).thinking += val.delta;
+                  break;
+                }
+              }
+              pushToStore();
+            }
+          } else if (name === "thinking_end") {
+            useThreadStore.getState().setActivity(conversationId, activityPhrase);
           }
           break;
         }
@@ -415,6 +461,7 @@ async function consumeStream(
           }
 
           // Normal completion (or drain finishing) — end the stream
+          useThreadStore.getState().setActivity(conversationId, null);
           eventBus.endSubscription(conversationId);
           break;
         }

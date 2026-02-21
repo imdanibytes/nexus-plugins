@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ToolExecutor } from "./tools/executor.js";
-import type { ToolDefinition } from "./tools/types.js";
-import type { ToolFilter } from "./types.js";
-import { getToolSettings } from "./tool-settings.js";
-import type { AgentMode } from "./tasks/types.js";
-import { delegateTool } from "./tools/handlers/delegate.js";
+import { ToolExecutor } from "./executor.js";
+import type { ToolDefinition } from "./types.js";
+import type { ToolFilter } from "../types.js";
+import { getToolSettings } from "./settings.js";
+import type { AgentMode } from "../tasks/types.js";
+import { delegateTool } from "./handlers/delegate.js";
 import {
   setModeTool,
   approvePlanTool,
@@ -13,8 +13,9 @@ import {
   updateTaskTool,
   listTasksTool,
   getTaskTool,
-} from "./tools/handlers/tasks.js";
-import { fetchMcpToolHandlers } from "./tools/handlers/remote.js";
+} from "./handlers/tasks.js";
+import { createBatchCallTool } from "./handlers/batch-call.js";
+import { fetchMcpToolHandlers } from "./handlers/remote.js";
 
 export interface ToolRegistry {
   executor: ToolExecutor;
@@ -74,6 +75,7 @@ function applyToolFilters(
 
 const INTERNAL_TOOL_NAMES = new Set([
   "delegate",
+  "batch_call",
   "workflow_set_mode",
   "task_approve_plan",
   "task_create_plan",
@@ -85,7 +87,7 @@ const INTERNAL_TOOL_NAMES = new Set([
 
 const MODE_TOOLS: Record<AgentMode, { internal: Set<string>; allowMcp: boolean }> = {
   general: {
-    internal: new Set(["workflow_set_mode"]),
+    internal: new Set(["workflow_set_mode", "batch_call"]),
     allowMcp: true,
   },
   discovery: {
@@ -97,7 +99,7 @@ const MODE_TOOLS: Record<AgentMode, { internal: Set<string>; allowMcp: boolean }
     allowMcp: false,
   },
   execution: {
-    internal: new Set(["delegate", "task_update", "task_list", "task_get", "workflow_set_mode"]),
+    internal: new Set(["delegate", "batch_call", "task_update", "task_list", "task_get", "workflow_set_mode"]),
     allowMcp: true,
   },
   review: {
@@ -144,6 +146,8 @@ export async function getToolRegistry(
   executor.register(listTasksTool);
   executor.register(getTaskTool);
   executor.registerAll(await fetchMcpToolHandlers());
+  // batch_call must be registered after all other tools so it can reference them
+  executor.register(createBatchCallTool(executor));
 
   // Apply global + agent-level filters. Frontend tools bypass server-side
   // filters (they're defined by the client and shouldn't be subject to admin deny-lists).

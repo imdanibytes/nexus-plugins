@@ -7,6 +7,11 @@
     "dev:ui": "pnpm --filter ui dev"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@imdanibytes/nexus-ui": "link:../../app/packages/nexus-ui"
   }
 }

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import type { ModelTiers, ModelTierName } from "./types.js";
+import type { ModelTiers, ModelTierName } from "../types.js";
 
 const TIERS_PATH = "/data/model-tiers.json";
 

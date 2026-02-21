@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
-import type { Agent } from "./types.js";
+import type { Agent } from "../types.js";
 
 const AGENTS_DIR = "/data/agents";
 const INDEX_PATH = path.join(AGENTS_DIR, "index.json");
@@ -47,6 +47,8 @@ export function createAgent(data: {
   maxTokens?: number;
   topP?: number;
   toolFilter?: Agent["toolFilter"];
+  retrievalPriming?: Agent["retrievalPriming"];
+  executionStrategy?: Agent["executionStrategy"];
 }): Agent {
   const agents = loadAgents();
   const now = Date.now();
@@ -63,6 +65,8 @@ export function createAgent(data: {
     maxTokens: data.maxTokens,
     topP,
     toolFilter: data.toolFilter,
+    retrievalPriming: data.retrievalPriming,
+    executionStrategy: data.executionStrategy,
     createdAt: now,
     updatedAt: now,
   };
@@ -76,7 +80,7 @@ export function updateAgent(
   data: Partial<
     Pick<
       Agent,
-      "name" | "providerId" | "model" | "systemPrompt" | "temperature" | "maxTokens" | "topP" | "toolFilter"
+      "name" | "providerId" | "model" | "systemPrompt" | "temperature" | "maxTokens" | "topP" | "toolFilter" | "retrievalPriming" | "executionStrategy"
     >
   >,
 ): Agent | null {

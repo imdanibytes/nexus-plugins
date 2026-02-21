@@ -1,8 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { getModelTier } from "../model-tiers.js";
-import { getAgent } from "../agents.js";
-import { getProvider } from "../providers.js";
-import { createLlmClient } from "../client-factory.js";
+import { getModelTier } from "../config/model-tiers.js";
+import { getAgent } from "../config/agents.js";
+import { getProvider } from "../config/providers.js";
+import { createLlmClient } from "../config/client-factory.js";
 import type { WireMessage } from "../types.js";
 
 const FOLLOW_UP_PROMPT = `You generate suggestion chips for a chat UI. These chips are buttons the USER clicks to send their next message.

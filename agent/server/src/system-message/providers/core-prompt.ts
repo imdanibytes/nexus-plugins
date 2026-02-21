@@ -5,6 +5,8 @@ export const corePromptProvider: SystemMessageProvider = {
   timeoutMs: 100,
 
   async provide(ctx: SystemMessageContext): Promise<string | null> {
-    return ctx.agent?.systemPrompt || ctx.settings.system_prompt || null;
+    const prompt = ctx.agent?.systemPrompt || ctx.settings.system_prompt || null;
+    if (!prompt) return null;
+    return `<system_prompt>\n${prompt}\n</system_prompt>`;
   },
 };

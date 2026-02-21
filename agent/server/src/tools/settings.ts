@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import type { ToolSettings } from "./types.js";
+import type { ToolSettings } from "../types.js";
 
 const SETTINGS_PATH = "/data/tool-settings.json";
 

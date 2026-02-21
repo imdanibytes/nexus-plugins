@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   ArrowDownIcon,
+  BrainIcon,
   BugIcon,
   CheckIcon,
   ChevronLeftIcon,
@@ -23,18 +24,25 @@ import {
 } from "lucide-react";
 import { useThreadStore, EMPTY_CONV } from "@/stores/threadStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
-import type { ChatMessage, ToolCallPart } from "@/stores/threadStore.js";
+import type { ChatMessage, ToolCallPart, ThinkingPart } from "@/stores/threadStore.js";
 import { getBranchInfo } from "@/lib/message-tree.js";
-import { useAutoScroll } from "@/hooks/useAutoScroll.js";
+import { useAutoScroll } from "@imdanibytes/nexus-ui";
 import { useChatStream } from "@/hooks/useChatStream.js";
 import { useUsageStore } from "@/stores/usageStore.js";
 import { useChatStore } from "@/stores/chatStore.js";
 import { fetchConversationUsage } from "@/api/client.js";
-import { MarkdownText } from "@/components/chat/MarkdownText.js";
-import { ToolFallback } from "@/components/chat/ToolFallback.js";
-import { TooltipIconButton } from "@/components/chat/tooltip-icon-button.js";
-import { Composer } from "@/components/chat/Composer.js";
+import {
+  MarkdownText,
+  ToolFallback,
+  TooltipIconButton,
+  Composer,
+  TimingWaterfall,
+  cn,
+} from "@imdanibytes/nexus-ui";
+import type { TimingSpan } from "@imdanibytes/nexus-ui";
 import { SuggestionChips } from "@/components/chat/SuggestionChips.js";
+import { ContextRingConnected } from "@/components/ContextRingConnected.js";
+import { AgentSwitcher } from "@/components/AgentSwitcher.js";
 import {
   Dropdown,
   DropdownTrigger,
@@ -46,9 +54,6 @@ import {
   ModalBody,
   Spinner,
 } from "@heroui/react";
-import { cn } from "@imdanibytes/nexus-ui";
-import { TimingWaterfall } from "@/components/TimingWaterfall.js";
-import type { TimingSpan } from "@/stores/chatStore.js";
 
 // ── Thread ──
 
@@ -145,6 +150,7 @@ export const Thread: FC = () => {
           onSend={sendMessage}
           onCancel={abort}
           isStreaming={isStreaming}
+          leftSlot={<><AgentSwitcher /><ContextRingConnected /></>}
         />
       </div>
     </div>
@@ -211,11 +217,49 @@ const ThreadWelcome: FC<{ onSend: (text: string) => void }> = ({ onSend }) => {
 
 // ── Thinking Indicator ──
 
-const ThinkingIndicator: FC = () => (
-  <div className="px-2 py-3">
-    <Spinner variant="dots" color="primary" size="md" />
+const ThinkingIndicator: FC<{ label?: string | null }> = ({ label }) => (
+  <div className="flex items-center gap-2 px-2 py-3">
+    <Spinner variant="dots" color="primary" size="sm" />
+    {label && (
+      <span className="text-xs text-default-500 animate-pulse">{label}</span>
+    )}
   </div>
 );
+
+const StreamingActivity: FC<{ label: string }> = ({ label }) => (
+  <div className="flex items-center gap-2 px-2 pt-1">
+    <Spinner variant="dots" color="primary" size="sm" />
+    <span className="text-xs text-default-500 animate-pulse">{label}</span>
+  </div>
+);
+
+// ── Thinking Block ──
+
+const ThinkingBlock: FC<{ thinking: string; isStreaming?: boolean }> = ({
+  thinking,
+  isStreaming,
+}) => {
+  const [expanded, setExpanded] = useState(isStreaming ?? false);
+
+  return (
+    <div className="border-l-2 border-default-300 dark:border-default-300/50 pl-3 my-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-default-400 hover:text-default-600 flex items-center gap-1.5 transition-colors"
+      >
+        <BrainIcon className="size-3" />
+        <span>{expanded ? "Hide" : "Show"} thinking</span>
+        {isStreaming && <Spinner variant="dots" size="sm" />}
+      </button>
+      {expanded && (
+        <div className="text-sm text-default-500 mt-2 whitespace-pre-wrap leading-relaxed">
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Branch Picker ──
 
@@ -411,6 +455,10 @@ const AssistantMessage: FC<{
   const visibleParts = message.parts.filter(
     (p) => p.type === "text" ? (p as { text: string }).text.length > 0 : true,
   );
+  const activeConvId = useThreadListStore((s) => s.activeThreadId);
+  const activity = useThreadStore(
+    (s) => s.conversations[activeConvId ?? ""]?.activity ?? null,
+  );
 
   return (
     <div
@@ -418,9 +466,21 @@ const AssistantMessage: FC<{
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed space-y-2.5">
-        {isActiveStream && visibleParts.length === 0 && <ThinkingIndicator />}
+        {isActiveStream && visibleParts.length === 0 && (
+          <ThinkingIndicator label={activity} />
+        )}
 
         {message.parts.map((part, i) => {
+          if (part.type === "thinking") {
+            const tp = part as ThinkingPart;
+            return (
+              <ThinkingBlock
+                key={i}
+                thinking={tp.thinking}
+                isStreaming={isActiveStream}
+              />
+            );
+          }
           if (part.type === "text") {
             return (
               <MarkdownText
@@ -444,6 +504,10 @@ const AssistantMessage: FC<{
           }
           return null;
         })}
+
+        {isActiveStream && visibleParts.length > 0 && activity && (
+          <StreamingActivity label={activity} />
+        )}
 
         {hasError && (
           <div className="aui-message-error-root mt-2 rounded-md border border-danger/30 bg-danger/10 p-3 text-danger text-sm">

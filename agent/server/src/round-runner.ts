@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ToolRegistry } from "./tool-registry.js";
+import type { ToolRegistry } from "./tools/registry.js";
 import type { MessagePart, SseWriter } from "./types.js";
 import type { ToolContext } from "./tools/types.js";
 import {
@@ -8,6 +8,67 @@ import {
   type ResolvedToolResult,
 } from "./ag-ui-types.js";
 import type { SpanHandle } from "./timing.js";
+import { fenceToolResult } from "./agent.js";
+
+/**
+ * Find the closest matching tool name using Levenshtein distance.
+ * Returns the best match if the distance is within a reasonable threshold,
+ * or if the candidate is a substring/suffix match. Returns null if nothing
+ * is close enough to be a useful suggestion.
+ */
+function findClosestTool(
+  unknown: string,
+  candidates: string[],
+): string | null {
+  if (candidates.length === 0) return null;
+
+  const lower = unknown.toLowerCase();
+
+  // Exact substring match (model dropped a prefix): "read_file" → "filesystem__read_file"
+  const substringHits = candidates.filter((c) =>
+    c.toLowerCase().endsWith(lower) || c.toLowerCase().endsWith(`__${lower}`),
+  );
+  if (substringHits.length === 1) return substringHits[0];
+
+  // Levenshtein distance
+  let bestDist = Infinity;
+  let bestMatch: string | null = null;
+  for (const candidate of candidates) {
+    const d = levenshtein(lower, candidate.toLowerCase());
+    if (d < bestDist) {
+      bestDist = d;
+      bestMatch = candidate;
+    }
+  }
+
+  // Accept if edit distance is at most 40% of the longer string
+  const maxLen = Math.max(lower.length, bestMatch?.length ?? 0);
+  if (bestMatch && bestDist <= Math.ceil(maxLen * 0.4)) {
+    return bestMatch;
+  }
+
+  return null;
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i);
+
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1]
+        ? prev
+        : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = temp;
+    }
+  }
+
+  return dp[n];
+}
 
 export interface RoundParams {
   client: Anthropic;
@@ -24,6 +85,10 @@ export interface RoundParams {
   sse: SseWriter;
   roundNumber: number;
   parentSpan: SpanHandle;
+  /** Anthropic extended thinking config — pass through to the API */
+  thinking?: { type: "enabled"; budget_tokens: number } | { type: "disabled" };
+  /** Whether to extract <thinking> tags from text output (prompted CoT) */
+  extractPromptedThinking?: boolean;
 }
 
 export interface RoundResult {
@@ -48,6 +113,7 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
     client, model, maxTokens, temperature, topP,
     systemMessage, apiMessages, toolRegistry, toolCtx,
     messageId, signal, sse, roundNumber, parentSpan,
+    thinking, extractPromptedThinking: shouldExtractThinking,
   } = params;
 
   if (signal.aborted) {
@@ -59,6 +125,7 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
   // Hoisted so the catch block can access partial content on abort
   const assistantParts: MessagePart[] = [];
   let textStarted = false;
+  let thinkingStarted = false;
   const toolUseBlocks: { id: string; name: string; partialJson: string }[] = [];
 
   const llmSpan = parentSpan.span("llm_call", { model, round: roundNumber });
@@ -76,11 +143,15 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       tools: toolRegistry.anthropicTools.length > 0
         ? toolRegistry.anthropicTools
         : undefined,
-      ...(temperature !== undefined
-        ? { temperature }
-        : topP !== undefined
-          ? { top_p: topP }
-          : {}),
+      // When native thinking is enabled, temperature MUST be 1 (Anthropic constraint)
+      ...(thinking?.type === "enabled"
+        ? {}
+        : temperature !== undefined
+          ? { temperature }
+          : topP !== undefined
+            ? { top_p: topP }
+            : {}),
+      ...(thinking ? { thinking } : {}),
     }, { signal });
 
     let stopReason: string | null = null;
@@ -109,6 +180,15 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
             toolCallName: realName,
             parentMessageId: messageId,
           });
+        } else if (block.type === "thinking") {
+          assistantParts.push({ type: "thinking", thinking: "" });
+          if (!thinkingStarted) {
+            sse.writeEvent(EventType.CUSTOM, {
+              name: "thinking_start",
+              value: { messageId },
+            });
+            thinkingStarted = true;
+          }
         }
       } else if (event.type === "content_block_delta") {
         const delta = event.delta;
@@ -137,6 +217,22 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
               delta: delta.partial_json,
             });
           }
+        } else if (delta.type === "thinking_delta") {
+          // Append to the last thinking part
+          for (let i = assistantParts.length - 1; i >= 0; i--) {
+            if (assistantParts[i].type === "thinking") {
+              (assistantParts[i] as { type: "thinking"; thinking: string }).thinking +=
+                (delta as { type: "thinking_delta"; thinking: string }).thinking;
+              break;
+            }
+          }
+          sse.writeEvent(EventType.CUSTOM, {
+            name: "thinking_delta",
+            value: {
+              messageId,
+              delta: (delta as { type: "thinking_delta"; thinking: string }).thinking,
+            },
+          });
         }
       } else if (event.type === "message_delta") {
         stopReason = event.delta.stop_reason ?? null;
@@ -145,6 +241,12 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
 
     if (textStarted) {
       sse.writeEvent(EventType.TEXT_MESSAGE_END, { messageId });
+    }
+    if (thinkingStarted) {
+      sse.writeEvent(EventType.CUSTOM, {
+        name: "thinking_end",
+        value: { messageId },
+      });
     }
     for (const block of toolUseBlocks) {
       sse.writeEvent(EventType.TOOL_CALL_END, { toolCallId: block.id });
@@ -178,10 +280,15 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       sse.writeEvent(EventType.STEP_FINISHED, {
         stepName: `round:${roundNumber}`,
       });
-      return { stopReason: "end_turn", assistantParts, tokenUsage };
+      const finalParts = shouldExtractThinking
+        ? extractPromptedThinking(assistantParts)
+        : assistantParts;
+      return { stopReason: "end_turn", assistantParts: finalParts, tokenUsage };
     }
 
     // ── Tool execution ──
+    // Build API content blocks for the assistant turn (excluding thinking —
+    // Claude doesn't accept thinking blocks echoed back).
     const assistantContentBlocks: Anthropic.ContentBlockParam[] = [];
     for (const part of assistantParts) {
       if (part.type === "text" && part.text) {
@@ -206,8 +313,24 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       return { ...block, args };
     });
 
+    // Three-way split: server tools (have executor), frontend tools (defined
+    // by client but no executor), and unknown tools (model hallucinated or
+    // mangled the name). Unknown tools must NOT be sent to the frontend as
+    // "pending" — that triggers a re-POST loop. Handle them as server-side
+    // errors so the round loop can self-correct.
+    const knownFrontendNames = new Set(
+      toolRegistry.definitions
+        .filter((d) => !toolRegistry.executor.has(d.name))
+        .map((d) => d.name),
+    );
+
     const serverTools = parsed.filter((b) => toolRegistry.executor.has(b.name));
-    const clientTools = parsed.filter((b) => !toolRegistry.executor.has(b.name));
+    const frontendTools = parsed.filter(
+      (b) => !toolRegistry.executor.has(b.name) && knownFrontendNames.has(b.name),
+    );
+    const unknownTools = parsed.filter(
+      (b) => !toolRegistry.executor.has(b.name) && !knownFrontendNames.has(b.name),
+    );
 
     const toolExecSpan = parentSpan.span("tool_execution", {
       count: serverTools.length,
@@ -227,11 +350,35 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
 
     toolExecSpan.end();
 
+    // Build error results for unknown/hallucinated tool names, with fuzzy
+    // "did you mean?" suggestions so the model can self-correct.
+    const allToolNames = toolRegistry.definitions.map((d) =>
+      toolRegistry.wireName(d.name),
+    );
+    const unknownResults = unknownTools.map((block) => {
+      const suggestion = findClosestTool(block.name, allToolNames);
+      const hint = suggestion
+        ? `Did you mean "${suggestion}"?`
+        : `Available tools: ${allToolNames.join(", ")}`;
+      console.warn(
+        `[agent] unknown tool call: "${block.name}"` +
+          (suggestion ? ` → suggested "${suggestion}"` : ""),
+      );
+      return {
+        tool_use_id: block.id,
+        content: `Tool "${block.name}" does not exist. ${hint}`,
+        is_error: true as const,
+      };
+    });
+
     // Emit results + build resolvedToolResults
     const resolvedToolResults: ResolvedToolResult[] = [];
-    for (let i = 0; i < serverResults.length; i++) {
-      const result = serverResults[i];
-      const block = serverTools[i];
+    const allResults = [...serverResults, ...unknownResults];
+    const allBlocks = [...serverTools, ...unknownTools];
+
+    for (let i = 0; i < allResults.length; i++) {
+      const result = allResults[i];
+      const block = allBlocks[i];
 
       if (!block.name.startsWith("_nexus_")) {
         assistantParts.push({
@@ -262,12 +409,12 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
     });
 
     // Frontend tools pending — orchestrator handles the break
-    if (clientTools.length > 0) {
+    if (frontendTools.length > 0) {
       return {
         stopReason: "tool_use",
         assistantParts,
         tokenUsage,
-        pendingToolCalls: clientTools.map((b) => ({
+        pendingToolCalls: frontendTools.map((b) => ({
           toolCallId: b.id,
           toolCallName: b.name,
           args: b.args,
@@ -276,12 +423,12 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
       };
     }
 
-    // All server-side — build apiMessages for next round
-    const toolResultBlocks: Anthropic.ToolResultBlockParam[] = serverResults.map(
+    // All server-side (including unknown tool errors) — build apiMessages for next round
+    const toolResultBlocks: Anthropic.ToolResultBlockParam[] = allResults.map(
       (r) => ({
         type: "tool_result" as const,
         tool_use_id: r.tool_use_id,
-        content: r.content,
+        content: fenceToolResult(r.content),
         is_error: r.is_error,
       }),
     );
@@ -323,4 +470,27 @@ export async function runRound(params: RoundParams): Promise<RoundResult> {
     });
     return { stopReason: "error", assistantParts: [], error: message };
   }
+}
+
+/**
+ * Extract `<thinking>...</thinking>` tags from text parts into separate
+ * thinking MessageParts. Used for prompted CoT (non-native models).
+ */
+function extractPromptedThinking(parts: MessagePart[]): MessagePart[] {
+  const result: MessagePart[] = [];
+  for (const part of parts) {
+    if (part.type !== "text") {
+      result.push(part);
+      continue;
+    }
+    const match = part.text.match(/^<thinking>([\s\S]*?)<\/thinking>\s*/);
+    if (match) {
+      result.push({ type: "thinking", thinking: match[1].trim() });
+      const remainder = part.text.slice(match[0].length).trim();
+      if (remainder) result.push({ type: "text", text: remainder });
+    } else {
+      result.push(part);
+    }
+  }
+  return result;
 }

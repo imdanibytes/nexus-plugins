@@ -1,7 +1,7 @@
-import { setToolsChangedHandler } from "./mcp-client.js";
-import { invalidateMcpToolCache } from "./tools/handlers/remote.js";
-import { hub } from "./sse-handler.js";
-import { EventType } from "./ag-ui-types.js";
+import { setToolsChangedHandler } from "../protocol/mcp-client.js";
+import { invalidateMcpToolCache } from "./handlers/remote.js";
+import { hub } from "../sse-handler.js";
+import { EventType } from "../ag-ui-types.js";
 
 /** Start listening for MCP tool changes from the Nexus Host API. */
 export function startToolEventListener(): void {

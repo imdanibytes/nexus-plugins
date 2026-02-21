@@ -1,5 +1,5 @@
-import { nexus } from "./nexus.js";
-import type { AgentSettings } from "./types.js";
+import { nexus } from "../protocol/nexus.js";
+import type { AgentSettings } from "../types.js";
 
 const DEFAULTS: AgentSettings = {
   llm_endpoint: "http://host.docker.internal:11434",

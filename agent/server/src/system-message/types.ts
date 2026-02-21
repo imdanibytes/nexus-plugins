@@ -1,4 +1,4 @@
-import type { Agent, Conversation, AgentSettings } from "../types.js";
+import type { Agent, Conversation, AgentSettings, WireMessage } from "../types.js";
 
 export interface SystemMessageContext {
   conversationId: string;
@@ -7,6 +7,8 @@ export interface SystemMessageContext {
   toolNames: string[];
   settings: AgentSettings;
   agent?: Agent | null;
+  /** Current turn wire messages — for providers needing latest user input */
+  wireMessages?: WireMessage[];
 }
 
 export interface SystemMessageProvider {

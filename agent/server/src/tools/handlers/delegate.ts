@@ -2,10 +2,10 @@ import type { ToolHandler, ToolResult, ToolContext } from "../types.js";
 import { EventType } from "../../ag-ui-types.js";
 import { runSubAgent, type SubAgentProgress } from "../../sub-agent/runner.js";
 import { getRole } from "../../sub-agent/roles.js";
-import { getModelTier } from "../../model-tiers.js";
-import { getAgent } from "../../agents.js";
-import { getProvider } from "../../providers.js";
-import { createLlmClient } from "../../client-factory.js";
+import { getModelTier } from "../../config/model-tiers.js";
+import { getAgent } from "../../config/agents.js";
+import { getProvider } from "../../config/providers.js";
+import { createLlmClient } from "../../config/client-factory.js";
 import type { ModelTierName } from "../../types.js";
 
 /**

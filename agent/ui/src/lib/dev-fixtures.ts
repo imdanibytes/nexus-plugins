@@ -354,6 +354,7 @@ export function injectDevFixtures() {
         messages,
         isStreaming: true,
         isLoadingHistory: false,
+        activity: null,
         repository: [],
         childrenMap: {},
         branchSelections: {},

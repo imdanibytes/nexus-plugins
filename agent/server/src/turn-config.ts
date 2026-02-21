@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Agent, AgentSettings, Provider } from "./types.js";
-import { getAgent, getActiveAgentId } from "./agents.js";
-import { getProvider } from "./providers.js";
-import { createLlmClient } from "./client-factory.js";
+import { getAgent, getActiveAgentId } from "./config/agents.js";
+import { getProvider } from "./config/providers.js";
+import { createLlmClient } from "./config/client-factory.js";
 
 export interface TurnConfig {
   client: Anthropic;

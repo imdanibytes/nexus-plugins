@@ -21,6 +21,7 @@ export const conversationContextProvider: SystemMessageProvider = {
       parts.push(`Token usage: ${ctx.tokenUsage.input.toLocaleString()}/${ctx.tokenUsage.limit.toLocaleString()} (${pct}%)`);
     }
 
-    return parts.length > 0 ? parts.join("\n") : null;
+    if (parts.length === 0) return null;
+    return `<conversation_context>\n${parts.join("\n")}\n</conversation_context>`;
   },
 };

@@ -1,16 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
-import { listAgents, getAgent, getActiveAgentId } from "./agents.js";
+import { listAgents, getAgent, getActiveAgentId } from "../config/agents.js";
 import {
   listConversations,
   getConversation,
   saveConversation,
-} from "./storage.js";
-import { runAgentTurn, type WireMessage } from "./agent.js";
-import { hub } from "./sse-handler.js";
-import { EventType } from "./ag-ui-types.js";
-import type { CollectedEvent } from "./streaming.js";
-import type { Span } from "./timing.js";
-import type { Message, MessagePart } from "./types.js";
+} from "../storage.js";
+import { runAgentTurn, type WireMessage } from "../agent.js";
+import { hub } from "../sse-handler.js";
+import { EventType } from "../ag-ui-types.js";
+import type { CollectedEvent } from "../streaming.js";
+import type { Span } from "../timing.js";
+import type { Message, MessagePart } from "../types.js";
 
 interface McpCallRequest {
   tool_name: string;

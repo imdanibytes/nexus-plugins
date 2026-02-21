@@ -6,15 +6,17 @@ export const datetimeProvider: SystemMessageProvider = {
 
   async provide(): Promise<string> {
     const now = new Date();
-    return `Current date and time: ${now.toLocaleDateString("en-US", {
+    const date = now.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
-    })} ${now.toLocaleTimeString("en-US", {
+    });
+    const time = now.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       timeZoneName: "short",
-    })}`;
+    });
+    return `<datetime>\nCurrent date and time: ${date} ${time}\n</datetime>`;
   },
 };

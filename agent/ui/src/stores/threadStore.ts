@@ -14,10 +14,10 @@ import type { TimingSpan } from "./chatStore.js";
 
 export type TextPart = { type: "text"; text: string };
 
-export type ToolCallStatus =
-  | { type: "running" }
-  | { type: "complete" }
-  | { type: "incomplete"; reason: string; error?: unknown };
+export type ThinkingPart = { type: "thinking"; thinking: string };
+
+import type { ToolCallStatus } from "@imdanibytes/nexus-ui";
+export type { ToolCallStatus } from "@imdanibytes/nexus-ui";
 
 export type ToolCallPart = {
   type: "tool-call";
@@ -30,7 +30,7 @@ export type ToolCallPart = {
   status?: ToolCallStatus;
 };
 
-export type MessagePart = TextPart | ToolCallPart;
+export type MessagePart = TextPart | ThinkingPart | ToolCallPart;
 
 export interface ChatMessage {
   id: string;
@@ -56,6 +56,7 @@ export interface ConvState {
   messages: ChatMessage[];
   isStreaming: boolean;
   isLoadingHistory: boolean;
+  activity: string | null;
   repository: MessageNode[];
   childrenMap: Record<string, string[]>;
   branchSelections: Record<string, number>;
@@ -67,6 +68,7 @@ export const EMPTY_CONV: ConvState = {
   messages: [],
   isStreaming: false,
   isLoadingHistory: false,
+  activity: null,
   repository: [],
   childrenMap: {},
   branchSelections: {},
@@ -120,6 +122,9 @@ interface ThreadState {
   // Follow-up suggestions
   setSuggestions: (convId: string, suggestions: string[]) => void;
   clearSuggestions: (convId: string) => void;
+
+  // Activity status
+  setActivity: (convId: string, activity: string | null) => void;
 }
 
 let msgCounter = 0;
@@ -269,7 +274,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
         status: status ?? { type: "complete" },
         metadata: metadata ? { ...last.metadata, ...metadata } : last.metadata,
       };
-      return patchConv(s, convId, { messages: msgs, isStreaming: false });
+      return patchConv(s, convId, { messages: msgs, isStreaming: false, activity: null });
     });
   },
 
@@ -326,5 +331,9 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
 
   clearSuggestions: (convId) => {
     set((s) => patchConv(s, convId, { suggestions: [] }));
+  },
+
+  setActivity: (convId, activity) => {
+    set((s) => patchConv(s, convId, { activity }));
   },
 }));

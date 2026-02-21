@@ -1,4 +1,4 @@
-import { getMcpClient, closeMcpClient } from "../../mcp-client.js";
+import { getMcpClient, closeMcpClient } from "../../protocol/mcp-client.js";
 import type { ToolHandler, ToolResult, ToolContext } from "../types.js";
 
 let cachedHandlers: ToolHandler[] = [];

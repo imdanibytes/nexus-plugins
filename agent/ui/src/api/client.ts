@@ -126,6 +126,35 @@ export interface ToolFilter {
   tools: string[];
 }
 
+export interface RetrievalPrimingConfig {
+  enabled: boolean;
+  maxChars?: number;
+}
+
+export interface ExecutionStrategyConfig {
+  type: "default" | "enhanced";
+  selfCritique?: {
+    enabled: boolean;
+    tier?: ModelTierName;
+  };
+  verification?: {
+    enabled: boolean;
+    commands?: string[];
+    maxRetries?: number;
+  };
+  routing?: {
+    critique?: ModelTierName;
+    refinement?: ModelTierName;
+  };
+}
+
+export type ThinkingMode = "auto" | "native" | "prompted" | "disabled";
+
+export interface ThinkingConfig {
+  mode: ThinkingMode;
+  budgetTokens?: number;
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -136,6 +165,9 @@ export interface Agent {
   maxTokens?: number;
   topP?: number;
   toolFilter?: ToolFilter;
+  retrievalPriming?: RetrievalPrimingConfig;
+  executionStrategy?: ExecutionStrategyConfig;
+  thinking?: ThinkingConfig;
   createdAt: number;
   updatedAt: number;
 }
@@ -349,6 +381,9 @@ export async function createAgentApi(data: {
   maxTokens?: number;
   topP?: number | null;
   toolFilter?: ToolFilter;
+  retrievalPriming?: RetrievalPrimingConfig;
+  executionStrategy?: ExecutionStrategyConfig;
+  thinking?: ThinkingConfig;
 }): Promise<Agent> {
   const res = await fetch("/api/agents", {
     method: "POST",
@@ -369,6 +404,9 @@ export async function updateAgentApi(
     maxTokens: number;
     topP: number | null;
     toolFilter: ToolFilter;
+    retrievalPriming: RetrievalPrimingConfig;
+    executionStrategy: ExecutionStrategyConfig;
+    thinking: ThinkingConfig;
   }>,
 ): Promise<Agent> {
   const res = await fetch(`/api/agents/${id}`, {

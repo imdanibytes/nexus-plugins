@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { v4 as uuidv4 } from "uuid";
-import { nexus } from "./nexus.js";
+import { nexus } from "./protocol/nexus.js";
 import {
   listConversations,
   getConversation,
@@ -20,7 +20,7 @@ import {
   deleteAgent as removeAgent,
   getActiveAgentId,
   setActiveAgentId,
-} from "./agents.js";
+} from "./config/agents.js";
 import {
   listProviders,
   getProvider,
@@ -28,15 +28,15 @@ import {
   createProvider,
   updateProvider,
   deleteProvider as removeProvider,
-} from "./providers.js";
-import { getToolSettings, updateToolSettings } from "./tool-settings.js";
-import { startToolEventListener } from "./tool-events.js";
-import { probeEndpoint, probeProvider } from "./discovery.js";
-import { getSettings, updateSettings } from "./settings.js";
-import { getModelTiers, setModelTiers } from "./model-tiers.js";
+} from "./config/providers.js";
+import { getToolSettings, updateToolSettings } from "./tools/settings.js";
+import { startToolEventListener } from "./tools/events.js";
+import { probeEndpoint, probeProvider } from "./protocol/discovery.js";
+import { getSettings, updateSettings } from "./config/settings.js";
+import { getModelTiers, setModelTiers } from "./config/model-tiers.js";
 import { ToolExecutor } from "./tools/executor.js";
 import { fetchMcpToolHandlers } from "./tools/handlers/remote.js";
-import { handleMcpCall } from "./mcp-handler.js";
+import { handleMcpCall } from "./protocol/mcp-handler.js";
 import { handleSseRoute } from "./sse-handler.js";
 import type { Conversation } from "./types.js";
 

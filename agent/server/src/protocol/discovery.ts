@@ -130,7 +130,7 @@ export async function probeEndpoint(
 
 /** Probe a Provider by resolving its endpoint/key and calling probeEndpoint */
 export async function probeProvider(
-  provider: import("./types.js").Provider,
+  provider: import("../types.js").Provider,
 ): Promise<EndpointStatus> {
   switch (provider.type) {
     case "ollama":
@@ -152,7 +152,7 @@ export async function probeProvider(
 }
 
 async function probeAnthropic(
-  provider: import("./types.js").Provider,
+  provider: import("../types.js").Provider,
 ): Promise<EndpointStatus> {
   const baseUrl = provider.endpoint || "https://api.anthropic.com";
   try {
@@ -196,7 +196,7 @@ async function probeAnthropic(
 }
 
 async function probeBedrock(
-  provider: import("./types.js").Provider,
+  provider: import("../types.js").Provider,
 ): Promise<EndpointStatus> {
   try {
     const client = new BedrockClient({

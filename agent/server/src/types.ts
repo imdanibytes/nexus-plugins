@@ -41,6 +41,48 @@ export type ModelTiers = Record<ModelTierName, string | null>;
 
 export const MODEL_TIER_NAMES: ModelTierName[] = ["fast", "balanced", "powerful"];
 
+export interface RetrievalPrimingConfig {
+  enabled: boolean;
+  /** Max characters of retrieved context injected into system message. Default: 8000 */
+  maxChars?: number;
+}
+
+export interface ThinkingConfig {
+  /** "auto" detects from provider+model, "native" forces API thinking,
+      "prompted" injects CoT prompt, "disabled" skips entirely */
+  mode: "auto" | "native" | "prompted" | "disabled";
+  /** Token budget for native extended thinking (min 1024). Default: 10000 */
+  budgetTokens?: number;
+}
+
+export interface ExecutionStrategyConfig {
+  type: "default" | "enhanced";
+
+  /** Self-critique: invoke reviewer sub-agent after code-producing rounds */
+  selfCritique?: {
+    enabled: boolean;
+    /** Model tier for the critique agent. Default: "powerful" */
+    tier?: ModelTierName;
+  };
+
+  /** Auto-verification: run commands to check generated code */
+  verification?: {
+    enabled: boolean;
+    /** Shell commands to run (e.g. ["tsc --noEmit", "eslint . --quiet"]) */
+    commands?: string[];
+    /** Max correction retries after verification failure. Default: 2 */
+    maxRetries?: number;
+  };
+
+  /** Per-step model routing overrides */
+  routing?: {
+    /** Tier for critique/review sub-agent. Default: "powerful" */
+    critique?: ModelTierName;
+    /** Tier for refinement/correction rounds. Default: agent's own tier */
+    refinement?: ModelTierName;
+  };
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -51,6 +93,12 @@ export interface Agent {
   maxTokens?: number;
   topP?: number;
   toolFilter?: ToolFilter;
+  /** Retrieval priming: auto-inject relevant code into system message */
+  retrievalPriming?: RetrievalPrimingConfig;
+  /** Execution strategy: controls post-round quality passes */
+  executionStrategy?: ExecutionStrategyConfig;
+  /** Chain of Thought / extended thinking configuration */
+  thinking?: ThinkingConfig;
   createdAt: number;
   updatedAt: number;
 }
@@ -70,6 +118,7 @@ export interface ConversationMeta {
 
 export type MessagePart =
   | { type: "text"; text: string }
+  | { type: "thinking"; thinking: string }
   | { type: "tool-call"; id: string; name: string; args: Record<string, unknown>; result?: string; isError?: boolean };
 
 export interface Message {

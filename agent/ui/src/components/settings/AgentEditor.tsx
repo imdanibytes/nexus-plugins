@@ -11,6 +11,13 @@ import {
   type ProviderPublic,
   type ModelInfo,
   type ToolFilter,
+  type ModelTierName,
+  type RetrievalPrimingConfig,
+  type ExecutionStrategyConfig,
+  type ThinkingConfig,
+  type ThinkingMode,
+  MODEL_TIER_NAMES,
+  MODEL_TIER_LABELS,
 } from "@/api/client.js";
 import { useChatStore } from "@/stores/chatStore.js";
 import {
@@ -52,6 +59,32 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
   const [saving, setSaving] = useState(false);
   const [discoveredModels, setDiscoveredModels] = useState<ModelInfo[]>([]);
   const [toolSearch, setToolSearch] = useState("");
+  const [retrievalEnabled, setRetrievalEnabled] = useState(agent?.retrievalPriming?.enabled ?? false);
+  const [retrievalMaxChars, setRetrievalMaxChars] = useState(agent?.retrievalPriming?.maxChars ?? 8000);
+  const [strategyType, setStrategyType] = useState<"default" | "enhanced">(
+    agent?.executionStrategy?.type ?? "default",
+  );
+  const [critiqueEnabled, setCritiqueEnabled] = useState(
+    agent?.executionStrategy?.selfCritique?.enabled ?? false,
+  );
+  const [critiqueTier, setCritiqueTier] = useState<ModelTierName>(
+    agent?.executionStrategy?.selfCritique?.tier ?? "powerful",
+  );
+  const [verifyEnabled, setVerifyEnabled] = useState(
+    agent?.executionStrategy?.verification?.enabled ?? false,
+  );
+  const [verifyCommands, setVerifyCommands] = useState(
+    agent?.executionStrategy?.verification?.commands?.join("\n") ?? "",
+  );
+  const [verifyMaxRetries, setVerifyMaxRetries] = useState(
+    agent?.executionStrategy?.verification?.maxRetries ?? 2,
+  );
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(
+    agent?.thinking?.mode ?? "disabled",
+  );
+  const [thinkingBudget, setThinkingBudget] = useState(
+    agent?.thinking?.budgetTokens ?? 10000,
+  );
   const { availableTools } = useChatStore();
 
   useEffect(() => {
@@ -73,6 +106,40 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
           ? undefined
           : { mode: filterMode, tools: Array.from(filterTools) };
 
+      const retrievalPriming: RetrievalPrimingConfig | undefined = retrievalEnabled
+        ? { enabled: true, maxChars: retrievalMaxChars }
+        : undefined;
+
+      const executionStrategy: ExecutionStrategyConfig | undefined =
+        strategyType === "enhanced"
+          ? {
+              type: "enhanced" as const,
+              selfCritique: critiqueEnabled
+                ? { enabled: true, tier: critiqueTier }
+                : undefined,
+              verification: verifyEnabled
+                ? {
+                    enabled: true,
+                    commands: verifyCommands
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    maxRetries: verifyMaxRetries,
+                  }
+                : undefined,
+            }
+          : undefined;
+
+      const thinking: ThinkingConfig | undefined =
+        thinkingMode !== "disabled"
+          ? {
+              mode: thinkingMode,
+              ...(thinkingMode === "native" || thinkingMode === "auto"
+                ? { budgetTokens: thinkingBudget }
+                : {}),
+            }
+          : undefined;
+
       const data = {
         name: name.trim(),
         providerId,
@@ -83,6 +150,9 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
           : { temperature: null, topP }),
         maxTokens,
         toolFilter,
+        retrievalPriming,
+        executionStrategy,
+        thinking,
       };
 
       if (agent) {
@@ -329,6 +399,213 @@ export function AgentEditor({ agent, providers, onSave, onCancel, onDelete }: Pr
               {filterMode === "allow"
                 ? "Only checked tools will be available."
                 : "Checked tools will be blocked."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <Divider />
+
+      <div className="space-y-4">
+        <h4 className="text-xs font-medium text-default-500 uppercase tracking-wide">
+          Retrieval Priming
+        </h4>
+        <p className="text-[11px] text-default-500">
+          Automatically inject relevant code from indexed repositories into the system message.
+        </p>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={retrievalEnabled}
+            onChange={(e) => setRetrievalEnabled(e.target.checked)}
+            className="accent-primary"
+          />
+          <span className="text-xs">Enable retrieval priming</span>
+        </label>
+
+        {retrievalEnabled && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium">Max Characters</label>
+              <span className="text-xs text-default-500 font-mono">{retrievalMaxChars}</span>
+            </div>
+            <input
+              type="range"
+              min="2000"
+              max="24000"
+              step="1000"
+              value={retrievalMaxChars}
+              onChange={(e) => setRetrievalMaxChars(parseInt(e.target.value))}
+              className="w-full accent-primary"
+            />
+            <p className="text-[11px] text-default-500">
+              Maximum characters of code context to inject. Higher values use more tokens.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <Divider />
+
+      <div className="space-y-4">
+        <h4 className="text-xs font-medium text-default-500 uppercase tracking-wide">
+          Execution Strategy
+        </h4>
+        <p className="text-[11px] text-default-500">
+          Add post-round quality passes to improve code output.
+        </p>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Strategy</label>
+          <Select
+            selectedKeys={[strategyType]}
+            onSelectionChange={(keys) => {
+              const key = Array.from(keys)[0] as "default" | "enhanced";
+              if (key) setStrategyType(key);
+            }}
+            size="sm"
+            aria-label="Execution strategy"
+          >
+            <SelectItem key="default">Default</SelectItem>
+            <SelectItem key="enhanced">Enhanced (critique + verification)</SelectItem>
+          </Select>
+        </div>
+
+        {strategyType === "enhanced" && (
+          <div className="space-y-4 pl-3 border-l-2 border-default-200">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={critiqueEnabled}
+                  onChange={(e) => setCritiqueEnabled(e.target.checked)}
+                  className="accent-primary"
+                />
+                <span className="text-xs font-medium">Self-Critique</span>
+              </label>
+              {critiqueEnabled && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Critique Model Tier</label>
+                  <Select
+                    selectedKeys={[critiqueTier]}
+                    onSelectionChange={(keys) => {
+                      const key = Array.from(keys)[0] as ModelTierName;
+                      if (key) setCritiqueTier(key);
+                    }}
+                    size="sm"
+                    aria-label="Critique tier"
+                  >
+                    {MODEL_TIER_NAMES.map((tier) => (
+                      <SelectItem key={tier} textValue={MODEL_TIER_LABELS[tier].label}>
+                        <div>
+                          <div className="text-xs">{MODEL_TIER_LABELS[tier].label}</div>
+                          <div className="text-[11px] text-default-500">
+                            {MODEL_TIER_LABELS[tier].description}
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </Select>
+                  <p className="text-[11px] text-default-500">
+                    A separate model reviews code after each round. Use a stronger tier for better reviews.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={verifyEnabled}
+                  onChange={(e) => setVerifyEnabled(e.target.checked)}
+                  className="accent-primary"
+                />
+                <span className="text-xs font-medium">Verification Commands</span>
+              </label>
+              {verifyEnabled && (
+                <div className="space-y-3">
+                  <Textarea
+                    label="Commands"
+                    labelPlacement="outside"
+                    value={verifyCommands}
+                    onChange={(e) => setVerifyCommands(e.target.value)}
+                    placeholder={"tsc --noEmit\neslint . --quiet"}
+                    minRows={2}
+                    classNames={{ input: "text-xs font-mono" }}
+                    size="sm"
+                  />
+                  <p className="text-[11px] text-default-500">
+                    One command per line. Run after code-producing rounds to catch errors.
+                  </p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium">Max Retries</label>
+                      <span className="text-xs text-default-500 font-mono">{verifyMaxRetries}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="1"
+                      value={verifyMaxRetries}
+                      onChange={(e) => setVerifyMaxRetries(parseInt(e.target.value))}
+                      className="w-full accent-primary"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Divider />
+
+      <div className="space-y-4">
+        <h4 className="text-xs font-medium text-default-500 uppercase tracking-wide">
+          Thinking / Chain of Thought
+        </h4>
+        <p className="text-[11px] text-default-500">
+          Enable reasoning visibility. Native uses the model's built-in thinking API (Claude). Prompted injects CoT instructions for other models.
+        </p>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium">Mode</label>
+          <Select
+            selectedKeys={[thinkingMode]}
+            onSelectionChange={(keys) => {
+              const key = Array.from(keys)[0] as ThinkingMode;
+              if (key) setThinkingMode(key);
+            }}
+            size="sm"
+            aria-label="Thinking mode"
+          >
+            <SelectItem key="disabled">Disabled</SelectItem>
+            <SelectItem key="auto">Auto (detect from model)</SelectItem>
+            <SelectItem key="native">Native (API extended thinking)</SelectItem>
+            <SelectItem key="prompted">Prompted (tag-based CoT)</SelectItem>
+          </Select>
+        </div>
+
+        {(thinkingMode === "native" || thinkingMode === "auto") && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium">Budget Tokens</label>
+              <span className="text-xs text-default-500 font-mono">{thinkingBudget.toLocaleString()}</span>
+            </div>
+            <input
+              type="range"
+              min="1024"
+              max="32000"
+              step="1024"
+              value={thinkingBudget}
+              onChange={(e) => setThinkingBudget(parseInt(e.target.value))}
+              className="w-full accent-primary"
+            />
+            <p className="text-[11px] text-default-500">
+              Token budget for extended thinking. Higher values allow deeper reasoning but cost more. Min 1024.
             </p>
           </div>
         )}

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
-import type { Provider, ProviderPublic } from "./types.js";
+import type { Provider, ProviderPublic } from "../types.js";
 import { invalidateClientCache } from "./client-factory.js";
 
 const PROVIDERS_DIR = "/data/providers";

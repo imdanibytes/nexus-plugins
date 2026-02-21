@@ -1,21 +1,7 @@
 import { create } from "zustand";
 import type { Agent, AvailableTool, ProviderPublic } from "../api/client.js";
 
-export interface TimingSpanMarker {
-  label: string;
-  timeMs: number;
-}
-
-export interface TimingSpan {
-  id: string;
-  name: string;
-  parentId: string | null;
-  startMs: number;
-  endMs: number;
-  durationMs: number;
-  metadata?: Record<string, unknown>;
-  markers?: TimingSpanMarker[];
-}
+export type { TimingSpan, TimingSpanMarker } from "@imdanibytes/nexus-ui";
 
 interface ChatState {
   agents: Agent[];
