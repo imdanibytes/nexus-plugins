@@ -14,26 +14,8 @@ import { cn } from "@imdanibytes/nexus-ui";
 import { useTaskStore } from "@/stores/taskStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
 import { fetchTaskState } from "@/api/client.js";
-import type { Task, TaskStatus, AgentMode } from "@/api/client.js";
-
-// ── Mode chip ──
-
-const MODE_CONFIG: Record<AgentMode, { label: string; color: "default" | "warning" | "primary" | "success" | "secondary" }> = {
-  general: { label: "General", color: "default" },
-  discovery: { label: "Discovery", color: "warning" },
-  planning: { label: "Planning", color: "primary" },
-  execution: { label: "Executing", color: "success" },
-  review: { label: "Review", color: "secondary" },
-};
-
-const ModeChip: FC<{ mode: AgentMode }> = ({ mode }) => {
-  const config = MODE_CONFIG[mode];
-  return (
-    <Chip size="sm" variant="flat" color={config.color} className="text-[10px] h-5">
-      {config.label}
-    </Chip>
-  );
-};
+import type { Task, TaskStatus } from "@/api/client.js";
+import { ModeChip } from "@/components/chat/ModeChip.js";
 
 // ── Status icon ──
 

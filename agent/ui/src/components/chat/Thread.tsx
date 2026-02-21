@@ -24,13 +24,14 @@ import {
 } from "lucide-react";
 import { useThreadStore, EMPTY_CONV } from "@/stores/threadStore.js";
 import { useThreadListStore } from "@/stores/threadListStore.js";
+import { useTaskStore } from "@/stores/taskStore.js";
 import type { ChatMessage, ToolCallPart, ThinkingPart } from "@/stores/threadStore.js";
 import { getBranchInfo } from "@/lib/message-tree.js";
 import { useAutoScroll } from "@imdanibytes/nexus-ui";
 import { useChatStream } from "@/hooks/useChatStream.js";
 import { useUsageStore } from "@/stores/usageStore.js";
 import { useChatStore } from "@/stores/chatStore.js";
-import { fetchConversationUsage } from "@/api/client.js";
+import { fetchConversationUsage, fetchTaskState } from "@/api/client.js";
 import {
   MarkdownText,
   ToolFallback,
@@ -41,6 +42,7 @@ import {
 } from "@imdanibytes/nexus-ui";
 import type { TimingSpan } from "@imdanibytes/nexus-ui";
 import { SuggestionChips } from "@/components/chat/SuggestionChips.js";
+import { ModeChip } from "@/components/chat/ModeChip.js";
 import { ContextRingConnected } from "@/components/ContextRingConnected.js";
 import { AgentSwitcher } from "@/components/AgentSwitcher.js";
 import {
@@ -65,6 +67,9 @@ export const Thread: FC = () => {
   const { messages, isLoadingHistory } = conv;
   const { sendMessage, sendMessageFromEdit, regenerateResponse, abort, isStreaming } =
     useChatStream();
+  const mode = useTaskStore(
+    (s) => (activeThreadId ? s.states[activeThreadId]?.mode : undefined) ?? "general",
+  );
   const {
     containerRef,
     sentinelRef,
@@ -79,6 +84,9 @@ export const Thread: FC = () => {
       useThreadStore.getState().loadHistory(activeThreadId);
       fetchConversationUsage(activeThreadId).then((u) => {
         if (u) useUsageStore.getState().setUsage(activeThreadId, u);
+      });
+      fetchTaskState(activeThreadId).then((ts) => {
+        if (ts) useTaskStore.getState().setTaskState(activeThreadId, ts);
       });
     }
   }, [activeThreadId]);
@@ -95,42 +103,48 @@ export const Thread: FC = () => {
       className="aui-thread-root flex h-full flex-col"
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
-      <div
-        ref={containerRef}
-        className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
-        style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)" }}
-      >
-        {isEmpty && <ThreadWelcome onSend={sendMessage} />}
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={containerRef}
+          className="aui-thread-viewport flex h-full flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+          style={{ maskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)", WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 20px, black calc(100% - 20px), transparent 100%)" }}
+        >
+          {isEmpty && <ThreadWelcome onSend={sendMessage} />}
 
-        {messages.map((msg, idx) =>
-          msg.role === "user" ? (
-            <UserMessage
-              key={msg.id}
-              message={msg}
-              previousMessageId={idx > 0 ? messages[idx - 1].id : null}
-              isStreaming={isStreaming}
-              onEdit={(text, parentId) =>
-                sendMessageFromEdit(text, parentId)
-              }
-            />
-          ) : (
-            <AssistantMessage
-              key={msg.id}
-              message={msg}
-              isStreaming={isStreaming}
-              onReload={() => {
-                for (let j = idx - 1; j >= 0; j--) {
-                  if (messages[j].role === "user") {
-                    regenerateResponse(messages[j].id);
-                    return;
-                  }
+          {messages.map((msg, idx) =>
+            msg.role === "user" ? (
+              <UserMessage
+                key={msg.id}
+                message={msg}
+                previousMessageId={idx > 0 ? messages[idx - 1].id : null}
+                isStreaming={isStreaming}
+                onEdit={(text, parentId) =>
+                  sendMessageFromEdit(text, parentId)
                 }
-              }}
-            />
-          ),
-        )}
+              />
+            ) : (
+              <AssistantMessage
+                key={msg.id}
+                message={msg}
+                isStreaming={isStreaming}
+                onReload={() => {
+                  for (let j = idx - 1; j >= 0; j--) {
+                    if (messages[j].role === "user") {
+                      regenerateResponse(messages[j].id);
+                      return;
+                    }
+                  }
+                }}
+              />
+            ),
+          )}
 
-        <div ref={sentinelRef} className="h-px shrink-0" />
+          <div ref={sentinelRef} className="h-px shrink-0" />
+        </div>
+
+        <div className="absolute top-3 left-4 z-10 pointer-events-none">
+          <ModeChip mode={mode} />
+        </div>
       </div>
 
       {/* Footer — outside scroll area, stacked below */}
